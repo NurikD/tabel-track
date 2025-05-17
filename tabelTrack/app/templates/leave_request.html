@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-2xl mx-auto p-6">
+  <h2 class="text-2xl font-bold mb-4">Подать заявку на отпуск или больничный</h2>
+  <form method="post" class="space-y-4">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Отправить</button>
+  </form>
+
+  <h3 class="text-xl font-semibold mt-8 mb-2">Мои заявки</h3>
+  <ul class="space-y-2">
+    {% for req in my_requests %}
+      <li class="p-4 bg-white rounded shadow flex justify-between">
+        <div>
+          <p><strong>{{ req.get_leave_type_display }}:</strong> {{ req.start_date }} — {{ req.end_date }}</p>
+          <p class="text-sm text-gray-500">{{ req.comment }}</p>
+        </div>
+        <span class="{% if req.status == 'approved' %}text-green-600{% elif req.status == 'rejected' %}text-red-600{% else %}text-yellow-600{% endif %} font-bold">
+          {{ req.get_status_display }}
+        </span>
+      </li>
+    {% empty %}
+      <p>Пока заявок нет.</p>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}

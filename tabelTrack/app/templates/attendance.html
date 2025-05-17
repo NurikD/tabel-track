@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Мой табель{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto p-6">
+  <h2 class="text-2xl font-bold mb-6">📅 Табель учёта рабочего времени</h2>
+
+  <div class="grid grid-cols-7 gap-2 text-center text-sm font-medium">
+    <div class="py-2 text-gray-500">Пн</div>
+    <div class="py-2 text-gray-500">Вт</div>
+    <div class="py-2 text-gray-500">Ср</div>
+    <div class="py-2 text-gray-500">Чт</div>
+    <div class="py-2 text-gray-500">Пт</div>
+    <div class="py-2 text-gray-500">Сб</div>
+    <div class="py-2 text-gray-500">Вс</div>
+
+    {% for day in calendar %}
+      <div class="rounded-lg p-2 h-20 flex flex-col justify-between
+          {% if day.status == 'work' %}bg-green-200
+          {% elif day.status == 'vacation' %}bg-blue-200
+          {% elif day.status == 'sick' %}bg-yellow-200
+          {% elif day.status == 'absent' %}bg-red-200
+          {% else %}bg-gray-100{% endif %}">
+        <div class="text-sm font-semibold">{{ day.date.day }}</div>
+        <div class="text-xs">{{ day.status_label }}</div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

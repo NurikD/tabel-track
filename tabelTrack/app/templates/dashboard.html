@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Дашборд{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto p-6">
+
+  <!-- Приветствие и аватар -->
+  <div class="flex items-center justify-between mb-6">
+    <div class="flex items-center space-x-4">
+      <img src="https://ui-avatars.com/api/?name={{ user.get_full_name }}" alt="avatar"
+           class="w-12 h-12 rounded-full shadow">
+      <div>
+        <h1 class="text-xl font-bold">Добро пожаловать, {{ user.get_full_name }}</h1>
+        <p class="text-sm text-gray-500">Роль: {{ user.role|title }}</p>
+      </div>
+    </div>
+    <form action="{% url 'logout' %}" method="post">
+      {% csrf_token %}
+      <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
+        Выйти
+      </button>
+    </form>
+  </div>
+
+  <!-- Совет дня -->
+  <div class="bg-indigo-100 border-l-4 border-indigo-500 text-indigo-700 p-4 rounded mb-6">
+    <p class="font-semibold">💬 Совет дня:</p>
+    <p class="text-sm">Не забудьте отметить явку и проверьте, не забыли ли подать заявку на отпуск.</p>
+  </div>
+
+  <!-- Мини-статистика (можно показать всем, или только worker) -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+    <div class="bg-white shadow p-4 rounded-lg text-center">
+      <div class="text-sm text-gray-500">Отработано</div>
+      <div class="text-2xl font-bold text-green-600">14 дн.</div>
+    </div>
+    <div class="bg-white shadow p-4 rounded-lg text-center">
+      <div class="text-sm text-gray-500">Отпуск</div>
+      <div class="text-2xl font-bold text-blue-600">3 дн.</div>
+    </div>
+    <div class="bg-white shadow p-4 rounded-lg text-center">
+      <div class="text-sm text-gray-500">Больничный</div>
+      <div class="text-2xl font-bold text-yellow-600">2 дн.</div>
+    </div>
+    <div class="bg-white shadow p-4 rounded-lg text-center">
+      <div class="text-sm text-gray-500">Пропущено</div>
+      <div class="text-2xl font-bold text-red-600">1 дн.</div>
+    </div>
+  </div>
+
+  <!-- Панель действий по ролям -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+    {% if user.role == 'worker' %}
+      <a href="{% url 'attendance' %}"
+         class="bg-blue-500 hover:bg-blue-600 text-white p-6 rounded-xl text-center text-lg font-semibold shadow">
+        📅 Мой табель
+      </a>
+      <a href="{% url 'leave_request' %}"
+         class="bg-green-500 hover:bg-green-600 text-white p-6 rounded-xl text-center text-lg font-semibold shadow">
+        📝 Подать заявку
+      </a>
+
+    {% elif user.role == 'editor' %}
+      <a href="{% url 'edit_attendance' %}"
+         class="bg-yellow-500 hover:bg-yellow-600 text-white p-6 rounded-xl text-center text-lg font-semibold shadow">
+        🛠 Редактировать табель сотрудников
+      </a>
+
+    {% elif user.role == 'approver' %}
+      <a href="{% url 'approve_requests' %}"
+         class="bg-indigo-500 hover:bg-indigo-600 text-white p-6 rounded-xl text-center text-lg font-semibold shadow">
+        📋 Просмотр заявок на согласование
+      </a>
+
+    {% elif user.role == 'admin' %}
+      <a href="{% url 'user_management' %}"
+         class="bg-gray-800 hover:bg-gray-700 text-white p-6 rounded-xl text-center text-lg font-semibold shadow">
+        👥 Управление пользователями
+      </a>
+    {% endif %}
+  </div>
+
+  <!-- Дополнительный контент для editor -->
+  {% if user.role == 'editor' %}
+    <div class="bg-white p-4 rounded shadow mb-8">
+      <h2 class="text-lg font-semibold mb-2">📊 Задача</h2>
+      <p>Проверьте табели сотрудников за текущий период и при необходимости внесите корректировки.</p>
+    </div>
+  {% endif %}
+
+  <!-- Дополнительный контент для approver -->
+  {% if user.role == 'approver' %}
+    <div class="bg-white p-4 rounded shadow mb-8">
+      <h2 class="text-lg font-semibold mb-2">📥 Новые заявки</h2>
+      <p>Откройте список заявок и подтвердите или отклоните запросы сотрудников.</p>
+    </div>
+  {% endif %}
+
+  <!-- Последние заявки — только для worker -->
+  {% if user.role == 'worker' %}
+    <h2 class="text-xl font-semibold mb-2">📋 Последние заявки</h2>
+    <ul class="space-y-2">
+      <li class="bg-white p-3 rounded shadow flex justify-between">
+        <span>Отпуск с 10.05 по 15.05</span>
+        <span class="text-green-600 font-medium">✅ Одобрено</span>
+      </li>
+      <li class="bg-white p-3 rounded shadow flex justify-between">
+        <span>Больничный 05.05–06.05</span>
+        <span class="text-yellow-600 font-medium">⏳ В ожидании</span>
+      </li>
+    </ul>
+  {% endif %}
+
+</div>
+{% endblock %}

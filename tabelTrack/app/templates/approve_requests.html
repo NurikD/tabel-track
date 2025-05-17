@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Согласование заявок{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto p-6">
+  <h2 class="text-2xl font-bold mb-6">📋 Заявки на согласование</h2>
+
+  {% if requests %}
+    <ul class="space-y-4">
+      {% for req in requests %}
+        <li class="bg-white shadow p-4 rounded-lg">
+          <p><strong>{{ req.user.get_full_name }}</strong> — {{ req.get_leave_type_display }} с {{ req.start_date }} по {{ req.end_date }}</p>
+          <p class="text-sm text-gray-500 mb-2">{{ req.comment }}</p>
+
+          <form method="post" class="flex space-x-2">
+            {% csrf_token %}
+            <input type="hidden" name="request_id" value="{{ req.id }}">
+            <button name="action" value="approve" class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700">
+              ✅ Одобрить
+            </button>
+            <button name="action" value="reject" class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700">
+              ❌ Отклонить
+            </button>
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="text-gray-600">Нет заявок на согласование.</p>
+  {% endif %}
+</div>
+{% endblock %}
