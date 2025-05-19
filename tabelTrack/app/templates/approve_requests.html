@@ -2,31 +2,66 @@
 {% block title %}Согласование заявок{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto p-6">
-  <h2 class="text-2xl font-bold mb-6">📋 Заявки на согласование</h2>
+<div class="max-w-5xl mx-auto p-6">
 
-  {% if requests %}
-    <ul class="space-y-4">
-      {% for req in requests %}
-        <li class="bg-white shadow p-4 rounded-lg">
-          <p><strong>{{ req.user.get_full_name }}</strong> — {{ req.get_leave_type_display }} с {{ req.start_date }} по {{ req.end_date }}</p>
-          <p class="text-sm text-gray-500 mb-2">{{ req.comment }}</p>
+  <h2 class="text-2xl font-bold mb-4">📋 Заявки на согласование</h2>
 
-          <form method="post" class="flex space-x-2">
-            {% csrf_token %}
-            <input type="hidden" name="request_id" value="{{ req.id }}">
-            <button name="action" value="approve" class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700">
-              ✅ Одобрить
-            </button>
-            <button name="action" value="reject" class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700">
-              ❌ Отклонить
-            </button>
+  <!-- Фильтр по типу -->
+  <form method="get" class="mb-4 flex gap-2">
+    <select name="type" class="border rounded px-3 py-1">
+      <option value="">Все типы</option>
+      <option value="vacation" {% if selected_type == "vacation" %}selected{% endif %}>Отпуск</option>
+      <option value="sick" {% if selected_type == "sick" %}selected{% endif %}>Больничный</option>
+    </select>
+    <button class="bg-indigo-600 text-white px-4 py-1 rounded hover:bg-indigo-700">Фильтровать</button>
+  </form>
+
+  <!-- Новые заявки -->
+  <div class="mb-6">
+    <h3 class="text-lg font-semibold mb-2 text-yellow-600">⏳ В ожидании</h3>
+    {% if pending_requests %}
+      {% for r in pending_requests %}
+        <div class="bg-yellow-100 border rounded p-3 mb-2 flex justify-between items-center">
+          <div>
+            <p class="font-medium">{{ r.user.get_full_name }} — {{ r.get_leave_type_display }}</p>
+            <p class="text-sm text-gray-600">{{ r.start_date }} → {{ r.end_date }}</p>
+            {% if r.comment %}<p class="text-sm italic text-gray-700 mt-1">{{ r.comment }}</p>{% endif %}
+          </div>
+          <form method="post" class="flex gap-2 items-center">{% csrf_token %}
+            <input type="hidden" name="request_id" value="{{ r.id }}">
+            <button name="action" value="approve" class="bg-green-500 text-white px-3 py-1 rounded">Одобрить</button>
+            <button name="action" value="reject" class="bg-red-500 text-white px-3 py-1 rounded">Отклонить</button>
           </form>
-        </li>
+        </div>
       {% endfor %}
-    </ul>
-  {% else %}
-    <p class="text-gray-600">Нет заявок на согласование.</p>
-  {% endif %}
+    {% else %}
+      <p class="text-sm text-gray-500">Нет новых заявок.</p>
+    {% endif %}
+  </div>
+
+  <!-- Одобренные -->
+  <div class="mb-6">
+    <h3 class="text-lg font-semibold mb-2 text-green-600">✅ Одобрено</h3>
+    {% for r in approved_requests %}
+      <div class="bg-green-50 border rounded p-2 mb-2 text-sm">
+        {{ r.user.get_full_name }} — {{ r.get_leave_type_display }} ({{ r.start_date }} → {{ r.end_date }})
+      </div>
+    {% empty %}
+      <p class="text-sm text-gray-500">Нет.</p>
+    {% endfor %}
+  </div>
+
+  <!-- Отклонённые -->
+  <div class="mb-6">
+    <h3 class="text-lg font-semibold mb-2 text-red-600">❌ Отклонено</h3>
+    {% for r in rejected_requests %}
+      <div class="bg-red-50 border rounded p-2 mb-2 text-sm">
+        {{ r.user.get_full_name }} — {{ r.get_leave_type_display }} ({{ r.start_date }} → {{ r.end_date }})
+      </div>
+    {% empty %}
+      <p class="text-sm text-gray-500">Нет.</p>
+    {% endfor %}
+  </div>
+
 </div>
 {% endblock %}

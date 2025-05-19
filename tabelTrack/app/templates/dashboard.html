@@ -28,27 +28,29 @@
     <p class="text-sm">Не забудьте отметить явку и проверьте, не забыли ли подать заявку на отпуск.</p>
   </div>
 
-  <!-- Мини-статистика (можно показать всем, или только worker) -->
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-    <div class="bg-white shadow p-4 rounded-lg text-center">
-      <div class="text-sm text-gray-500">Отработано</div>
-      <div class="text-2xl font-bold text-green-600">14 дн.</div>
+  {% if user.role == 'worker' %}
+    <!-- Реальная статистика -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div class="bg-white shadow p-4 rounded-lg text-center">
+        <div class="text-sm text-gray-500">Отработано</div>
+        <div class="text-2xl font-bold text-green-600">{{ worked_days }} дн.</div>
+      </div>
+      <div class="bg-white shadow p-4 rounded-lg text-center">
+        <div class="text-sm text-gray-500">Отпуск</div>
+        <div class="text-2xl font-bold text-blue-600">{{ vacation_days }} дн.</div>
+      </div>
+      <div class="bg-white shadow p-4 rounded-lg text-center">
+        <div class="text-sm text-gray-500">Больничный</div>
+        <div class="text-2xl font-bold text-yellow-600">{{ sick_days }} дн.</div>
+      </div>
+      <div class="bg-white shadow p-4 rounded-lg text-center">
+        <div class="text-sm text-gray-500">Пропущено</div>
+        <div class="text-2xl font-bold text-red-600">{{ absent_days }} дн.</div>
+      </div>
     </div>
-    <div class="bg-white shadow p-4 rounded-lg text-center">
-      <div class="text-sm text-gray-500">Отпуск</div>
-      <div class="text-2xl font-bold text-blue-600">3 дн.</div>
-    </div>
-    <div class="bg-white shadow p-4 rounded-lg text-center">
-      <div class="text-sm text-gray-500">Больничный</div>
-      <div class="text-2xl font-bold text-yellow-600">2 дн.</div>
-    </div>
-    <div class="bg-white shadow p-4 rounded-lg text-center">
-      <div class="text-sm text-gray-500">Пропущено</div>
-      <div class="text-2xl font-bold text-red-600">1 дн.</div>
-    </div>
-  </div>
+  {% endif %}
 
-  <!-- Панель действий по ролям -->
+  <!-- Панель действий -->
   <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
     {% if user.role == 'worker' %}
       <a href="{% url 'attendance' %}"
@@ -59,19 +61,16 @@
          class="bg-green-500 hover:bg-green-600 text-white p-6 rounded-xl text-center text-lg font-semibold shadow">
         📝 Подать заявку
       </a>
-
     {% elif user.role == 'editor' %}
       <a href="{% url 'edit_attendance' %}"
          class="bg-yellow-500 hover:bg-yellow-600 text-white p-6 rounded-xl text-center text-lg font-semibold shadow">
         🛠 Редактировать табель сотрудников
       </a>
-
     {% elif user.role == 'approver' %}
       <a href="{% url 'approve_requests' %}"
          class="bg-indigo-500 hover:bg-indigo-600 text-white p-6 rounded-xl text-center text-lg font-semibold shadow">
         📋 Просмотр заявок на согласование
       </a>
-
     {% elif user.role == 'admin' %}
       <a href="{% url 'user_management' %}"
          class="bg-gray-800 hover:bg-gray-700 text-white p-6 rounded-xl text-center text-lg font-semibold shadow">
@@ -80,7 +79,7 @@
     {% endif %}
   </div>
 
-  <!-- Дополнительный контент для editor -->
+  <!-- Инфо для редактора -->
   {% if user.role == 'editor' %}
     <div class="bg-white p-4 rounded shadow mb-8">
       <h2 class="text-lg font-semibold mb-2">📊 Задача</h2>
@@ -88,7 +87,7 @@
     </div>
   {% endif %}
 
-  <!-- Дополнительный контент для approver -->
+  <!-- Инфо для согласующего -->
   {% if user.role == 'approver' %}
     <div class="bg-white p-4 rounded shadow mb-8">
       <h2 class="text-lg font-semibold mb-2">📥 Новые заявки</h2>
@@ -96,18 +95,25 @@
     </div>
   {% endif %}
 
-  <!-- Последние заявки — только для worker -->
+  <!-- Последние заявки — worker -->
   {% if user.role == 'worker' %}
     <h2 class="text-xl font-semibold mb-2">📋 Последние заявки</h2>
     <ul class="space-y-2">
-      <li class="bg-white p-3 rounded shadow flex justify-between">
-        <span>Отпуск с 10.05 по 15.05</span>
-        <span class="text-green-600 font-medium">✅ Одобрено</span>
-      </li>
-      <li class="bg-white p-3 rounded shadow flex justify-between">
-        <span>Больничный 05.05–06.05</span>
-        <span class="text-yellow-600 font-medium">⏳ В ожидании</span>
-      </li>
+      {% for req in my_requests %}
+        <li class="bg-white p-3 rounded shadow flex justify-between items-center">
+          <span>{{ req.get_leave_type_display }}: {{ req.start_date }} – {{ req.end_date }}</span>
+          <span class="text-sm font-medium
+            {% if req.status == 'approved' %}text-green-600
+            {% elif req.status == 'rejected' %}text-red-600
+            {% else %}text-yellow-600{% endif %}">
+            {% if req.status == 'approved' %}✅ Одобрено
+            {% elif req.status == 'rejected' %}❌ Отклонено
+            {% else %}⏳ В ожидании{% endif %}
+          </span>
+        </li>
+      {% empty %}
+        <li class="text-sm text-gray-500">Нет заявок.</li>
+      {% endfor %}
     </ul>
   {% endif %}
 

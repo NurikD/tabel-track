@@ -16,10 +16,16 @@ class CustomUser(AbstractUser):
         return self.get_full_name()
 
 class LeaveRequest(models.Model):
-    TYPE_CHOICES = [
-        ('vacation', 'Отпуск'),
-        ('sick', 'Больничный'),
-    ]
+TYPE_CHOICES = [
+    ('vacation', 'Ежегодный оплачиваемый отпуск'),
+    ('sick', 'Больничный'),
+    ('study', 'Учебный отпуск'),
+    ('business', 'Командировка'),
+    ('unpaid', 'Отпуск без сохранения ЗП'),
+    ('maternity', 'Декретный отпуск'),
+    ('childcare', 'Отпуск по уходу за ребёнком'),
+    ('other', 'Прочее')
+]
     STATUS_CHOICES = [
         ('pending', 'На рассмотрении'),
         ('approved', 'Одобрено'),
