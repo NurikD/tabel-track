@@ -16,16 +16,17 @@ class CustomUser(AbstractUser):
         return self.get_full_name()
 
 class LeaveRequest(models.Model):
-TYPE_CHOICES = [
-    ('vacation', 'Ежегодный оплачиваемый отпуск'),
-    ('sick', 'Больничный'),
-    ('study', 'Учебный отпуск'),
-    ('business', 'Командировка'),
-    ('unpaid', 'Отпуск без сохранения ЗП'),
-    ('maternity', 'Декретный отпуск'),
-    ('childcare', 'Отпуск по уходу за ребёнком'),
-    ('other', 'Прочее')
-]
+    TYPE_CHOICES = [
+        ('vacation', 'Ежегодный оплачиваемый отпуск'),
+        ('sick', 'Больничный лист'),
+        ('study', 'Учебный отпуск'),
+        ('business', 'Командировка'),
+        ('unpaid', 'Отпуск без сохранения заработной платы'),
+        ('maternity', 'Декретный отпуск'),
+        ('childcare', 'Отпуск по уходу за ребёнком'),
+        ('other', 'Прочий отпуск'),
+    ]
+
     STATUS_CHOICES = [
         ('pending', 'На рассмотрении'),
         ('approved', 'Одобрено'),
@@ -37,6 +38,7 @@ TYPE_CHOICES = [
     start_date = models.DateField()
     end_date = models.DateField()
     comment = models.TextField(blank=True)
+
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     reviewed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -49,4 +51,5 @@ TYPE_CHOICES = [
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.user.get_full_name()} - {self.leave_type} {self.start_date} → {self.end_date}"
+        readable_type = dict(self.TYPE_CHOICES).get(self.leave_type, self.leave_type)
+        return f"{self.user.get_full_name()} — {readable_type} с {self.start_date} по {self.end_date}"

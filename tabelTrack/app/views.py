@@ -104,6 +104,72 @@ def leave_request(request):
             leave = form.save(commit=False)
             leave.user = request.user
             leave.created_at = now()
+
+            start = leave.start_date
+            end = leave.end_date
+            leave_type = leave.leave_type
+
+            if start > end:
+                messages.error(request, "Дата начала не может быть позже даты окончания.")
+                return redirect('leave_request')
+
+            # 1. Запрет отпуска задним числом (больничный — можно)
+            if leave_type != 'sick' and start < date.today():
+                messages.error(request, "Нельзя подавать заявку на отпуск задним числом.")
+                return redirect('leave_request')
+
+            # 2. Проверка пересечений
+            # Глобальная проверка: ни одна дата не должна быть уже занята
+            overlapping_any_type = LeaveRequest.objects.filter(
+                user=request.user,
+                status__in=['pending', 'approved'],
+                start_date__lte=end,
+                end_date__gte=start
+            ).exclude(id=leave.id)
+
+            if overlapping_any_type.exists():
+                messages.error(request, "У вас уже есть заявка, перекрывающая выбранные даты — независимо от типа.")
+                return redirect('leave_request')
+
+            # 3. Лимит ежегодного отпуска
+            requested_days = (end - start).days + 1
+            available_days = 44  # максимум
+
+            if leave_type == 'vacation':
+                total_used = sum(
+                    (r.end_date - r.start_date).days + 1
+                    for r in LeaveRequest.objects.filter(
+                        user=request.user,
+                        leave_type='vacation',
+                        status='approved'
+                    )
+                )
+                remaining = available_days - total_used
+                if requested_days > remaining:
+                    messages.error(request, f"Превышен лимит отпуска. Осталось {remaining} дн.")
+                    return redirect('leave_request')
+
+                if requested_days < 14:
+                    messages.warning(request, "❗ Обратите внимание: хотя бы одна часть ежегодного отпуска должна быть не менее 14 дней.")
+
+            # 4. Больничный ↔ отпуск: не должны пересекаться
+            opposite_type = 'sick' if leave_type == 'vacation' else 'vacation' if leave_type == 'sick' else None
+            if opposite_type:
+                conflict = LeaveRequest.objects.filter(
+                    user=request.user,
+                    leave_type=opposite_type,
+                    status__in=['pending', 'approved'],
+                    start_date__lte=end,
+                    end_date__gte=start
+                ).exists()
+                if conflict:
+                    messages.error(
+                        request,
+                        f"{dict(LeaveRequest.TYPE_CHOICES)[leave_type]} не может пересекаться с {dict(LeaveRequest.TYPE_CHOICES)[opposite_type].lower()}."
+                    )
+                    return redirect('leave_request')
+
+            # Всё успешно — сохраняем
             leave.save()
             messages.success(request, "Заявка успешно отправлена.")
             return redirect('dashboard')
@@ -112,9 +178,21 @@ def leave_request(request):
 
     my_requests = LeaveRequest.objects.filter(user=request.user).order_by('-created_at')
 
+    # Расчёт оставшихся дней отпуска
+    total_used = sum(
+        (r.end_date - r.start_date).days + 1
+        for r in LeaveRequest.objects.filter(
+            user=request.user,
+            leave_type='vacation',
+            status='approved'
+        )
+    )
+    available_days = 44 - total_used
+
     return render(request, 'leave_request.html', {
         'form': form,
-        'my_requests': my_requests
+        'my_requests': my_requests,
+        'available_days': available_days
     })
 
 
