@@ -7,6 +7,8 @@ from datetime import date
 from datetime import date
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+import uuid
+
 
 class CustomUser(AbstractUser):
     ROLE_CHOICES = [
@@ -40,10 +42,20 @@ class CustomUser(AbstractUser):
     shift_type = models.CharField(max_length=10, choices=SHIFT_CHOICES, default='5_2')
     shift_start_date = models.DateField(null=True, blank=True, default=date(2024, 1, 1))
     position = models.CharField(max_length=100, choices=POSITION_CHOICES, blank=True, verbose_name='Должность')  # ✅ добавлено
+    telegram_id = models.BigIntegerField(null=True, blank=True, verbose_name="Telegram ID")
 
     def __str__(self):
         return self.get_full_name()
 
+
+class TelegramLink(models.Model):
+    user = models.OneToOneField("app.CustomUser", on_delete=models.CASCADE)
+    telegram_id = models.BigIntegerField(unique=True, null=True, blank=True)
+    code = models.CharField(max_length=6, null=True, blank=True)
+    is_verified = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.user.username} ({'✅' if self.is_verified else '❌'})"
 
 
 class LeaveRequest(models.Model):
