@@ -5,10 +5,12 @@ from django.contrib.auth.admin import UserAdmin
 @admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
     fieldsets = UserAdmin.fieldsets + (
-        ('Роль', {'fields': ('role',)}),
+        ('Дополнительно', {
+            'fields': ('role', 'gender', 'shift_type', 'shift_start_date')  # добавляем поле в интерфейс
+        }),
     )
-    list_display = ['username', 'email', 'first_name', 'last_name', 'role']
-    list_filter = ['role']
+    list_display = ['username', 'email', 'first_name', 'last_name', 'role', 'shift_type']
+    list_filter = ['role', 'shift_type']
 
 @admin.register(LeaveRequest)
 class LeaveRequestAdmin(admin.ModelAdmin):

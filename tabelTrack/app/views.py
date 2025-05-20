@@ -7,6 +7,7 @@ from .models import LeaveRequest
 from django.utils.timezone import now
 from django.contrib import messages
 from django.db.models import Q
+from utils.holidays import get_holidays_from_api
 
 # Проверки ролей
 def is_worker(user): return user.role == 'worker'
@@ -42,7 +43,6 @@ def dashboard(request):
     return render(request, 'dashboard.html', context)
 
 
-# Табель — только для сотрудников
 @login_required
 @user_passes_test(is_worker)
 def attendance(request):
@@ -52,35 +52,80 @@ def attendance(request):
     days_in_month = monthrange(year, month)[1]
 
     user = request.user
+    gender = user.gender
+    shift = user.shift_type
+    shift_start = user.shift_start_date or date(2024, 1, 1)
 
-    # Получаем все одобренные заявки пользователя
+    holidays = get_holidays_from_api(year)
+
     approved_requests = LeaveRequest.objects.filter(
         user=user,
         status='approved',
-        start_date__year=year,
-        end_date__year=year,
+        start_date__lte=date(year, month, days_in_month),
+        end_date__gte=date(year, month, 1)
     )
 
-    # Строим календарь
     calendar = []
+
+    first_weekday, _ = monthrange(year, month)  # День недели первого дня месяца (0=Пн)
+    # Добавляем пустые слоты, чтобы выровнять календарь
+    for _ in range(first_weekday):
+        calendar.append({'date': None, 'status': None, 'status_label': '', 'hours_planned': ''})
+
     for day in range(1, days_in_month + 1):
         current_date = date(year, month, day)
-        status = 'work'
+        weekday = current_date.weekday()
+        current_str = current_date.strftime('%Y-%m-%d')
 
-        for req in approved_requests:
-            if req.start_date <= current_date <= req.end_date:
-                status = req.leave_type  # 'vacation' или 'sick'
-                break
+        # 1. Праздник
+        if current_str in holidays and holidays[current_str] == 'holiday':
+            status = 'holiday'
+        else:
+            # 2. Отпуск / больничный
+            status = None
+            for req in approved_requests:
+                if req.start_date <= current_date <= req.end_date:
+                    status = req.leave_type  # 'vacation' или 'sick'
+                    break
+
+            # 3. Выходной по графику (если не отпуск/больничный)
+            if not status:
+                if shift == '5_2':
+                    status = 'weekend' if weekday in [5, 6] else 'work'
+                elif shift == '2_2':
+                    index = (current_date - shift_start).days
+                    status = 'weekend' if index >= 0 and (index % 4) in [2, 3] else 'work'
+                elif shift == '1_3':
+                    index = (current_date - shift_start).days
+                    status = 'work' if index >= 0 and (index % 4) == 0 else 'weekend'
+                else:
+                    status = 'work'
+
+        # 4. Часы
+        if status == 'work':
+            if shift == '5_2':
+                hours = 8 if gender == 'male' or weekday == 0 else 7
+            elif shift in ['2_2', '1_3']:
+                hours = 12
+            else:
+                hours = 8
+        else:
+            hours = 0
+
+        status_label = {
+            'work': 'Рабочий день',
+            'vacation': 'Отпуск',
+            'sick': 'Больничный',
+            'absent': 'Неявка',
+            'weekend': 'Выходной',
+            'holiday': 'Праздник 🎉',
+        }.get(status, 'Неизвестно')
 
         calendar.append({
             'date': current_date,
             'status': status,
-            'status_label': {
-                'work': 'Работа',
-                'vacation': 'Отпуск',
-                'sick': 'Больничный',
-                'absent': 'Неявка'
-            }[status]
+            'status_label': status_label,
+            'hours_planned': hours
         })
 
     weekdays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
@@ -91,7 +136,6 @@ def attendance(request):
         'year_range': range(today.year - 1, today.year + 2),
         'weekdays': weekdays,
     })
-
 
 
 # Подача заявки — только сотрудник
@@ -118,22 +162,21 @@ def leave_request(request):
                 messages.error(request, "Нельзя подавать заявку на отпуск задним числом.")
                 return redirect('leave_request')
 
-            # 2. Проверка пересечений
-            # Глобальная проверка: ни одна дата не должна быть уже занята
-            overlapping_any_type = LeaveRequest.objects.filter(
+            # 2. Проверка пересечений любых заявок
+            overlapping = LeaveRequest.objects.filter(
                 user=request.user,
                 status__in=['pending', 'approved'],
                 start_date__lte=end,
                 end_date__gte=start
             ).exclude(id=leave.id)
 
-            if overlapping_any_type.exists():
-                messages.error(request, "У вас уже есть заявка, перекрывающая выбранные даты — независимо от типа.")
+            if overlapping.exists():
+                messages.error(request, "У вас уже есть активная заявка, перекрывающая эти даты.")
                 return redirect('leave_request')
 
             # 3. Лимит ежегодного отпуска
             requested_days = (end - start).days + 1
-            available_days = 44  # максимум
+            available_days = 44  # по ТК РФ
 
             if leave_type == 'vacation':
                 total_used = sum(
@@ -150,9 +193,9 @@ def leave_request(request):
                     return redirect('leave_request')
 
                 if requested_days < 14:
-                    messages.warning(request, "❗ Обратите внимание: хотя бы одна часть ежегодного отпуска должна быть не менее 14 дней.")
+                    messages.warning(request, "❗ По ТК РФ хотя бы одна часть отпуска должна быть не менее 14 дней.")
 
-            # 4. Больничный ↔ отпуск: не должны пересекаться
+            # 4. Взаимоисключение отпуск ↔ больничный
             opposite_type = 'sick' if leave_type == 'vacation' else 'vacation' if leave_type == 'sick' else None
             if opposite_type:
                 conflict = LeaveRequest.objects.filter(
@@ -169,7 +212,9 @@ def leave_request(request):
                     )
                     return redirect('leave_request')
 
-            # Всё успешно — сохраняем
+            # 5. Статус: больничный — сразу approved
+            leave.status = 'approved' if leave_type == 'sick' else 'pending'
+
             leave.save()
             messages.success(request, "Заявка успешно отправлена.")
             return redirect('dashboard')
@@ -178,7 +223,7 @@ def leave_request(request):
 
     my_requests = LeaveRequest.objects.filter(user=request.user).order_by('-created_at')
 
-    # Расчёт оставшихся дней отпуска
+    # Подсчёт оставшегося отпуска
     total_used = sum(
         (r.end_date - r.start_date).days + 1
         for r in LeaveRequest.objects.filter(
@@ -194,6 +239,7 @@ def leave_request(request):
         'my_requests': my_requests,
         'available_days': available_days
     })
+
 
 
 # Согласование заявок — только согласующий

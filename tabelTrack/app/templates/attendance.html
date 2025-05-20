@@ -6,6 +6,7 @@
 <div class="max-w-6xl mx-auto p-6">
   <div class="flex justify-between items-center mb-4">
     <h2 class="text-2xl font-bold">📅 Табель учёта рабочего времени</h2>
+
     <!-- Фильтр -->
     <form method="get" class="flex space-x-2">
       <select name="month" class="border rounded px-2 py-1 text-sm">
@@ -25,11 +26,13 @@
   </div>
 
   <!-- Легенда -->
-  <div class="flex space-x-4 mb-4 text-sm text-gray-600">
+  <div class="flex flex-wrap gap-4 mb-4 text-sm text-gray-600">
     <div class="flex items-center"><div class="w-4 h-4 bg-green-300 rounded mr-1"></div>Работа</div>
     <div class="flex items-center"><div class="w-4 h-4 bg-blue-300 rounded mr-1"></div>Отпуск</div>
     <div class="flex items-center"><div class="w-4 h-4 bg-yellow-300 rounded mr-1"></div>Больничный</div>
     <div class="flex items-center"><div class="w-4 h-4 bg-red-300 rounded mr-1"></div>Неявка</div>
+    <div class="flex items-center"><div class="w-4 h-4 bg-orange-300 rounded mr-1"></div>Выходной</div>
+    <div class="flex items-center"><div class="w-4 h-4 bg-gray-400 rounded mr-1"></div>Праздник 🎉</div>
   </div>
 
   <!-- Сетка -->
@@ -39,20 +42,28 @@
     {% endfor %}
 
     {% for day in calendar %}
-      <div class="rounded-lg p-2 h-20 flex flex-col justify-between relative shadow-sm transition hover:scale-[1.02]
-          {% if day.status == 'work' %}bg-green-200
-          {% elif day.status == 'vacation' %}bg-blue-200
-          {% elif day.status == 'sick' %}bg-yellow-200
-          {% elif day.status == 'absent' %}bg-red-200
-          {% else %}bg-gray-100{% endif %}">
+    {% if day.date %}
+      <div class="rounded-lg p-2 h-24 flex flex-col justify-between relative shadow-sm transition hover:scale-[1.02]
+        {% if day.status == 'work' %}bg-green-200
+        {% elif day.status == 'vacation' %}bg-blue-200
+        {% elif day.status == 'sick' %}bg-yellow-200
+        {% elif day.status == 'absent' %}bg-red-200
+        {% elif day.status == 'weekend' %}bg-orange-200
+        {% elif day.status == 'holiday' %}bg-gray-300
+        {% else %}bg-gray-100{% endif %}">
+        
         <div class="text-sm font-semibold">{{ day.date.day }}</div>
-        <div class="text-xs text-gray-700">{{ day.status_label }}</div>
-
+        <div class="text-xs text-gray-700 leading-tight">{{ day.status_label }}</div>
+        <div class="text-[10px] text-gray-600">Норма: {{ day.hours_planned }} ч</div>
+  
         {% if day.date == today %}
           <span class="absolute top-1 right-1 bg-white border text-xs rounded px-1 font-semibold text-indigo-500">Сегодня</span>
         {% endif %}
       </div>
-    {% endfor %}
+    {% else %}
+      <div class="p-2 h-24"></div> <!-- Пустая ячейка -->
+    {% endif %}
+  {% endfor %}  
   </div>
 </div>
 {% endblock %}
