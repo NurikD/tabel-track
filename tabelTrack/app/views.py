@@ -3,7 +3,7 @@ from calendar import monthrange
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required, user_passes_test
 from .forms import LeaveRequestForm
-from .models import LeaveRequest
+from .models import LeaveRequest, CustomUser
 from django.utils.timezone import now
 from django.contrib import messages
 from django.db.models import Q
@@ -18,29 +18,67 @@ def is_admin(user): return user.role == 'admin'
 
 # Главная страница — доступна всем авторизованным
 @login_required
+@user_passes_test(is_approver)
 def dashboard(request):
-    context = {}
+    today = date.today()
 
-    if request.user.role == 'worker':
-        user = request.user
+    # Список всех сотрудников
+    team_members = CustomUser.objects.filter(role='worker')
 
-        # Последние 5 заявок
-        my_requests = LeaveRequest.objects.filter(user=user).order_by('-created_at')[:5]
+    # Подсчёт общей статистики
+    total_employees = team_members.count()
 
-        # Счётчики по типу отпуска (approved)
-        approved = LeaveRequest.objects.filter(user=user, status='approved')
-        vacation_days = sum((r.end_date - r.start_date).days + 1 for r in approved if r.leave_type == 'vacation')
-        sick_days = sum((r.end_date - r.start_date).days + 1 for r in approved if r.leave_type == 'sick')
+    # Заявки, перекрывающие сегодня
+    active_requests_today = LeaveRequest.objects.filter(
+        status='approved',
+        start_date__lte=today,
+        end_date__gte=today
+    )
 
-        context.update({
-            'my_requests': my_requests,
+    today_vacation = active_requests_today.filter(leave_type='vacation').count()
+    today_sick = active_requests_today.filter(leave_type='sick').count()
+    today_present = total_employees - today_vacation - today_sick
+
+    # Статистика
+    stats = {
+        "today_present": today_present,
+        "today_sick": today_sick,
+        "today_vacation": today_vacation,
+        "total_employees": total_employees,
+    }
+
+    # Последние 5 заявок сотрудников
+    team_requests = LeaveRequest.objects.filter(
+        user__role='worker'
+    ).order_by('-created_at')[:5]
+
+    # По каждому сотруднику: сколько отработал, отпуск, больничный
+    detailed_members = []
+    for member in team_members:
+        vacation = LeaveRequest.objects.filter(user=member, leave_type='vacation', status='approved')
+        sick = LeaveRequest.objects.filter(user=member, leave_type='sick', status='approved')
+
+        vacation_days = sum((r.end_date - r.start_date).days + 1 for r in vacation)
+        sick_days = sum((r.end_date - r.start_date).days + 1 for r in sick)
+        absent_days = 0  # сюда можно добавить отсутствие без причины
+
+        # Для примера: считаем отработанные дни = общее кол-во рабочих дней - отпуск - больничный
+        worked_days = 14  # ❗пока фиксированное число (можно связать с табелем)
+
+        detailed_members.append({
+            'get_full_name': member.get_full_name(),
+            'position': getattr(member, 'position', '—'),
             'vacation_days': vacation_days,
             'sick_days': sick_days,
-            'absent_days': 3,  # Пока статично — можно потом вычислять по табелю
-            'worked_days': 14  # Пока статично — можно интегрировать из attendance
+            'worked_days': worked_days,
         })
 
-    return render(request, 'dashboard.html', context)
+    return render(request, 'dashboard.html', {
+        'stats': stats,
+        'team_requests': team_requests,
+        'team_members': detailed_members,
+        'user': request.user
+    })
 
 
 @login_required

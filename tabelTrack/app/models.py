@@ -4,6 +4,10 @@ from django.conf import settings
 from django.utils import timezone
 from datetime import date
 
+from datetime import date
+from django.contrib.auth.models import AbstractUser
+from django.db import models
+
 class CustomUser(AbstractUser):
     ROLE_CHOICES = [
         ('worker', 'Сотрудник'),
@@ -21,14 +25,25 @@ class CustomUser(AbstractUser):
         ('1_3', 'Один через три (1/3)'),
         ('custom', 'Произвольный график'),
     ]
+    POSITION_CHOICES = [
+        ('master', 'Мастер по обслуживанию абонентов'),
+        ('specialist', 'Универсальный специалист связи'),
+        ('engineer', 'Инженер'),
+        ('service_engineer', 'Сервисный инженер'),
+        ('support', 'Специалист по сопровождению'),
+        ('lead_engineer', 'Ведущий Инженер'),
+        ('chief', 'Начальник участка'),
+    ]
 
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='worker')
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES, default='male')
     shift_type = models.CharField(max_length=10, choices=SHIFT_CHOICES, default='5_2')
-    shift_start_date = models.DateField(null=True, blank=True, default=date(2024, 1, 1))  # <--- ДОБАВЬ ЭТО
+    shift_start_date = models.DateField(null=True, blank=True, default=date(2024, 1, 1))
+    position = models.CharField(max_length=100, choices=POSITION_CHOICES, blank=True, verbose_name='Должность')  # ✅ добавлено
 
     def __str__(self):
         return self.get_full_name()
+
 
 
 class LeaveRequest(models.Model):
