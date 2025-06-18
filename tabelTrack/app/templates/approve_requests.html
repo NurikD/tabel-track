@@ -2,66 +2,290 @@
 {% block title %}Согласование заявок{% endblock %}
 
 {% block content %}
-<div class="max-w-5xl mx-auto p-6">
-
-  <h2 class="text-2xl font-bold mb-4">📋 Заявки на согласование</h2>
-
-  <!-- Фильтр по типу -->
-  <form method="get" class="mb-4 flex gap-2">
-    <select name="type" class="border rounded px-3 py-1">
-      <option value="">Все типы</option>
-      <option value="vacation" {% if selected_type == "vacation" %}selected{% endif %}>Отпуск</option>
-      <option value="sick" {% if selected_type == "sick" %}selected{% endif %}>Больничный</option>
-    </select>
-    <button class="bg-indigo-600 text-white px-4 py-1 rounded hover:bg-indigo-700">Фильтровать</button>
-  </form>
-
-  <!-- Новые заявки -->
-  <div class="mb-6">
-    <h3 class="text-lg font-semibold mb-2 text-yellow-600">⏳ В ожидании</h3>
-    {% if pending_requests %}
-      {% for r in pending_requests %}
-        <div class="bg-yellow-100 border rounded p-3 mb-2 flex justify-between items-center">
-          <div>
-            <p class="font-medium">{{ r.user.get_full_name }} — {{ r.get_leave_type_display }}</p>
-            <p class="text-sm text-gray-600">{{ r.start_date }} → {{ r.end_date }}</p>
-            {% if r.comment %}<p class="text-sm italic text-gray-700 mt-1">{{ r.comment }}</p>{% endif %}
-          </div>
-          <form method="post" class="flex gap-2 items-center">{% csrf_token %}
-            <input type="hidden" name="request_id" value="{{ r.id }}">
-            <button name="action" value="approve" class="bg-green-500 text-white px-3 py-1 rounded">Одобрить</button>
-            <button name="action" value="reject" class="bg-red-500 text-white px-3 py-1 rounded">Отклонить</button>
-          </form>
+<div class="container mx-auto px-6 py-6 max-w-7xl">
+    <!-- Заголовок страницы -->
+    <div class="mb-8">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-12 h-12 bg-red-500 rounded-xl flex items-center justify-center">
+                <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
+                    <path fill-rule="evenodd" d="M4 5a2 2 0 012-2v1a1 1 0 001 1h6a1 1 0 001-1V3a2 2 0 012 2v6.586l2.707 2.707A1 1 0 0118 17v-1a1 1 0 00-1-1h-4a1 1 0 00-1 1v1a1 1 0 01-1 1H9a1 1 0 01-1-1v-1a1 1 0 00-1-1H3a1 1 0 00-1 1v1a1 1 0 00.293.707L4 16.586V5z" clip-rule="evenodd"/>
+                </svg>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900">Заявки на согласование</h1>
         </div>
-      {% endfor %}
-    {% else %}
-      <p class="text-sm text-gray-500">Нет новых заявок.</p>
-    {% endif %}
-  </div>
+    </div>
 
-  <!-- Одобренные -->
-  <div class="mb-6">
-    <h3 class="text-lg font-semibold mb-2 text-green-600">✅ Одобрено</h3>
-    {% for r in approved_requests %}
-      <div class="bg-green-50 border rounded p-2 mb-2 text-sm">
-        {{ r.user.get_full_name }} — {{ r.get_leave_type_display }} ({{ r.start_date }} → {{ r.end_date }})
-      </div>
-    {% empty %}
-      <p class="text-sm text-gray-500">Нет.</p>
-    {% endfor %}
-  </div>
+    <!-- Фильтр -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
+        <form method="get" class="flex gap-4 items-center">
+            <div class="flex-1">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Тип заявки</label>
+                <select name="type" class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50">
+                    <option value="">Все типы</option>
+                    <option value="vacation" {% if selected_type == "vacation" %}selected{% endif %}>Отпуск</option>
+                    <option value="sick" {% if selected_type == "sick" %}selected{% endif %}>Больничный</option>
+                </select>
+            </div>
+            <div class="flex items-end">
+                <button class="bg-gradient-to-r from-red-500 to-red-600 text-white px-6 py-3 rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-lg hover:shadow-xl font-medium">
+                    Фильтровать
+                </button>
+            </div>
+        </form>
+    </div>
 
-  <!-- Отклонённые -->
-  <div class="mb-6">
-    <h3 class="text-lg font-semibold mb-2 text-red-600">❌ Отклонено</h3>
-    {% for r in rejected_requests %}
-      <div class="bg-red-50 border rounded p-2 mb-2 text-sm">
-        {{ r.user.get_full_name }} — {{ r.get_leave_type_display }} ({{ r.start_date }} → {{ r.end_date }})
-      </div>
-    {% empty %}
-      <p class="text-sm text-gray-500">Нет.</p>
-    {% endfor %}
-  </div>
+    <!-- Статистика заявок -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600">В ожидании</p>
+                    <p class="text-2xl font-bold text-orange-600">{{ pending_requests|length }}</p>
+                </div>
+                <div class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
+                    <svg class="w-6 h-6 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
 
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600">Одобрено</p>
+                    <p class="text-2xl font-bold text-green-600">{{ approved_requests|length }}</p>
+                </div>
+                <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                    <svg class="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600">Отклонено</p>
+                    <p class="text-2xl font-bold text-red-600">{{ rejected_requests|length }}</p>
+                </div>
+                <div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                    <svg class="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Заявки в ожидании -->
+    <div class="mb-8">
+        <div class="flex items-center gap-3 mb-6">
+            <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+                <svg class="w-4 h-4 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/>
+                </svg>
+            </div>
+            <h2 class="text-xl font-bold text-gray-900">В ожидании</h2>
+        </div>
+
+        {% if pending_requests %}
+            <div class="space-y-4">
+                {% for r in pending_requests %}
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all duration-200">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-3">
+                                    <div class="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center text-white font-semibold text-sm">
+                                        {{ r.user.get_full_name|first }}
+                                    </div>
+                                    <div>
+                                        <h3 class="font-semibold text-gray-900">{{ r.user.get_full_name }}</h3>
+                                        <p class="text-sm text-gray-500">{{ r.get_leave_type_display }}</p>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center gap-4 text-sm text-gray-600 mb-3">
+                                    <div class="flex items-center gap-2">
+                                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/>
+                                        </svg>
+                                        <span>{{ r.start_date|date:"j F Y" }}</span>
+                                    </div>
+                                    <span class="text-gray-400">→</span>
+                                    <div class="flex items-center gap-2">
+                                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/>
+                                        </svg>
+                                        <span>{{ r.end_date|date:"j F Y" }}</span>
+                                    </div>
+                                </div>
+
+                                {% if r.comment %}
+                                    <div class="bg-gray-50 rounded-xl p-4 mb-4">
+                                        <p class="text-sm text-gray-700 italic">{{ r.comment }}</p>
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <form method="post" class="flex gap-3 ml-6">
+                                {% csrf_token %}
+                                <input type="hidden" name="request_id" value="{{ r.id }}">
+                                <button name="action" value="approve" class="bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-lg hover:shadow-xl font-medium flex items-center gap-2">
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                    </svg>
+                                    Одобрить
+                                </button>
+                                <button name="action" value="reject" class="bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2 rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-lg hover:shadow-xl font-medium flex items-center gap-2">
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                                    </svg>
+                                    Отклонить
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
+                <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <p class="text-gray-500">Нет новых заявок</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Одобренные заявки -->
+    <div class="mb-8">
+        <div class="flex items-center gap-3 mb-6">
+            <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                </svg>
+            </div>
+            <h2 class="text-xl font-bold text-gray-900">Одобрено</h2>
+        </div>
+
+        {% if approved_requests %}
+            <div class="space-y-4">
+                {% for r in approved_requests %}
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center text-white font-semibold text-sm">
+                                {{ r.user.get_full_name|first }}
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-semibold text-gray-900">{{ r.user.get_full_name }}</h3>
+                                <div class="flex items-center gap-4 text-sm text-gray-600 mt-1">
+                                    <span>{{ r.get_leave_type_display }}</span>
+                                    <span class="text-gray-400">•</span>
+                                    <span>{{ r.start_date|date:"j F Y" }} → {{ r.end_date|date:"j F Y" }}</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                </svg>
+                                Одобрено
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
+                <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <p class="text-gray-500">Нет одобренных заявок</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Отклонённые заявки -->
+    <div class="mb-8">
+        <div class="flex items-center gap-3 mb-6">
+            <div class="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
+                <svg class="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                </svg>
+            </div>
+            <h2 class="text-xl font-bold text-gray-900">Отклонено</h2>
+        </div>
+
+        {% if rejected_requests %}
+            <div class="space-y-4">
+                {% for r in rejected_requests %}
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center text-white font-semibold text-sm">
+                                {{ r.user.get_full_name|first }}
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-semibold text-gray-900">{{ r.user.get_full_name }}</h3>
+                                <div class="flex items-center gap-4 text-sm text-gray-600 mt-1">
+                                    <span>{{ r.get_leave_type_display }}</span>
+                                    <span class="text-gray-400">•</span>
+                                    <span>{{ r.start_date|date:"j F Y" }} → {{ r.end_date|date:"j F Y" }}</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2 px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                                </svg>
+                                Отклонено
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
+                <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <p class="text-gray-500">Нет отклонённых заявок</p>
+            </div>
+        {% endif %}
+    </div>
 </div>
+{% endblock %}
+
+{% block extra_head %}
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/approve_request.css' %}">
+    <style>
+        /* Дополнительные стили для улучшения визуального эффекта */
+        .container {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            min-height: 100vh;
+        }
+
+        .shadow-sm {
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .shadow-lg {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        .shadow-xl {
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        .hover\:shadow-md:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+    </style>
 {% endblock %}

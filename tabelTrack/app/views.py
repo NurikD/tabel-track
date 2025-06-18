@@ -1,20 +1,18 @@
+import asyncio
 from datetime import date
 from calendar import monthrange
-from django.shortcuts import render, redirect
+from django.shortcuts import redirect, render
 from django.contrib.auth.decorators import login_required, user_passes_test
-from .forms import LeaveRequestForm
-from .models import LeaveRequest, CustomUser, TelegramLink
-from django.utils.timezone import now
-from django.contrib import messages
-from django.db.models import Q
-from utils.holidays import get_holidays_from_api
-from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
-import json, asyncio
-from app.telegram_utils import notify_approvers
-import random
-from django.contrib.auth import authenticate
-from asgiref.sync import sync_to_async
+from django.contrib import messages
+from django.utils import timezone
+from django.conf import settings
+
+from tabelTrack.app.telegram_utils import notify_approvers
+from .models import CustomUser, LeaveRequest
+from .forms import LeaveRequestForm
+from .utils.holidays import get_holidays_from_api
+from django.db.models import Q
 
 
 # Ролевые проверки
@@ -24,34 +22,15 @@ def is_approver(user): return user.role == 'approver'
 def is_admin(user): return user.role == 'admin'
 
 
-# Главная страница — дашборд
 @login_required
 def dashboard(request):
     user = request.user
     today = date.today()
+    year = today.year
+    month = today.month
+    days_in_month = monthrange(year, month)[1]
 
-    # Если сотрудник (worker)
-    if user.role == 'worker':
-        vacation = LeaveRequest.objects.filter(user=user, leave_type='vacation', status='approved')
-        sick = LeaveRequest.objects.filter(user=user, leave_type='sick', status='approved')
-
-        vacation_days = sum((r.end_date - r.start_date).days + 1 for r in vacation)
-        sick_days = sum((r.end_date - r.start_date).days + 1 for r in sick)
-        absent_days = 0  # пока заглушка
-        worked_days = 14  # заглушка
-
-        my_requests = LeaveRequest.objects.filter(user=user).order_by('-created_at')[:5]
-
-        return render(request, 'dashboard.html', {
-            'user': user,
-            'worked_days': worked_days,
-            'vacation_days': vacation_days,
-            'sick_days': sick_days,
-            'absent_days': absent_days,
-            'my_requests': my_requests,
-        })
-
-    # Для согласующего, редактора, админа — общая информация
+    # Общие данные
     team_members = CustomUser.objects.filter(role='worker')
     total_employees = team_members.count()
 
@@ -71,32 +50,149 @@ def dashboard(request):
         "total_employees": total_employees,
     }
 
-    team_requests = LeaveRequest.objects.filter(user__role='worker').order_by('-created_at')[:5]
+    # Личные данные текущего пользователя
+    user = request.user
+    my_requests = LeaveRequest.objects.filter(user=user).order_by('-created_at')[:5]
+    total_used = sum((r.end_date - r.start_date).days + 1 for r in LeaveRequest.objects.filter(
+        user=user, leave_type='vacation', status='approved'))
+    available_days = 44 - total_used
 
+    # Календарь для текущего пользователя
+    gender = user.gender
+    shift = user.shift_type
+    shift_start = user.shift_start_date or date(2024, 1, 1)
+    holidays = get_holidays_from_api(year)
+    approved_requests = LeaveRequest.objects.filter(
+        user=user,
+        status='approved',
+        start_date__lte=date(year, month, days_in_month),
+        end_date__gte=date(year, month, 1)
+    )
+
+    calendar = []
+    first_weekday, _ = monthrange(year, month)
+    for _ in range(first_weekday):
+        calendar.append({'date': None, 'status': None, 'status_label': '', 'hours_planned': ''})
+
+    for day in range(1, days_in_month + 1):
+        current_date = date(year, month, day)
+        weekday = current_date.weekday()
+        current_str = current_date.strftime('%Y-%m-%d')
+
+        if current_str in holidays and holidays[current_str] == 'holiday':
+            status = 'holiday'
+        else:
+            status = None
+            for req in approved_requests:
+                if req.start_date <= current_date <= req.end_date:
+                    status = req.leave_type
+                    break
+            if not status:
+                if shift == '5_2':
+                    status = 'weekend' if weekday in [5, 6] else 'work'
+                elif shift == '2_2':
+                    index = (current_date - shift_start).days
+                    status = 'weekend' if index >= 0 and (index % 4) in [2, 3] else 'work'
+                elif shift == '1_3':
+                    index = (current_date - shift_start).days
+                    status = 'work' if index >= 0 and (index % 4) == 0 else 'weekend'
+                else:
+                    status = 'work'
+
+        hours = 0
+        if status == 'work':
+            if shift == '5_2':
+                hours = 8 if gender == 'male' or weekday == 0 else 7
+            elif shift in ['2_2', '1_3']:
+                hours = 12
+            else:
+                hours = 8
+
+        status_label = {
+            'work': 'Рабочий день',
+            'vacation': 'Отпуск',
+            'sick': 'Больничный',
+            'absent': 'Неявка',
+            'weekend': 'Выходной',
+            'holiday': 'Праздник 🎉',
+        }.get(status, 'Неизвестно')
+
+        calendar.append({
+            'date': current_date,
+            'status': status,
+            'status_label': status_label,
+            'hours_planned': hours
+        })
+
+    # Подсчёт отработанных дней и прогресса для текущего пользователя
+    worked_days = sum(1 for day in calendar if day['status'] == 'work' and day['date'])
+    hours_planned = sum(day['hours_planned'] for day in calendar if day['status'] == 'work' and day['date'])
+    progress_percentage = (worked_days / days_in_month * 100) if days_in_month > 0 else 0
+    max_hours = days_in_month * 8  # Предполагаем 8 часов в день как максимум
+    hours_progress = (hours_planned / max_hours * 100) if max_hours > 0 else 0
+    vacation_progress = (available_days / 44 * 100) if 44 > 0 else 0
+
+    # Все заявки для approver
+    all_requests = LeaveRequest.objects.filter(status__in=['pending', 'approved', 'rejected']).order_by('-created_at')
+
+    # Детализация по сотрудникам для approver
     detailed_members = []
     for member in team_members:
         vacation = LeaveRequest.objects.filter(user=member, leave_type='vacation', status='approved')
         sick = LeaveRequest.objects.filter(user=member, leave_type='sick', status='approved')
-
         vacation_days = sum((r.end_date - r.start_date).days + 1 for r in vacation)
         sick_days = sum((r.end_date - r.start_date).days + 1 for r in sick)
-        worked_days = 14  # заглушка
-
+        worked_days_member = sum(1 for day in calendar if day['status'] == 'work' and day['date'])
         detailed_members.append({
             'get_full_name': member.get_full_name(),
             'position': member.get_position_display() if hasattr(member, 'get_position_display') else member.position,
             'vacation_days': vacation_days,
             'sick_days': sick_days,
-            'worked_days': worked_days,
+            'worked_days': worked_days_member,
         })
 
-    return render(request, 'dashboard.html', {
-        'user': user,
-        'stats': stats,
-        'team_requests': team_requests,
-        'team_members': detailed_members,
-    })
-
+    # Выбор шаблона и данных в зависимости от роли
+    if is_worker(user):
+        return render(request, 'dashboard_worker.html', {
+            'my_requests': my_requests,
+            'worked_days': worked_days,
+            'hours_planned': hours_planned,
+            'available_days': available_days,
+            'progress_percentage': round(progress_percentage, 2),
+            'hours_progress': round(hours_progress, 2),
+            'vacation_progress': round(vacation_progress, 2),
+            'user': user,
+            'calendar': calendar,
+        })
+    elif is_approver(user):
+        return render(request, 'dashboard_approver.html', {
+            'my_requests': my_requests,
+            'worked_days': worked_days,
+            'hours_planned': hours_planned,
+            'available_days': available_days,
+            'progress_percentage': round(progress_percentage, 2),
+            'hours_progress': round(hours_progress, 2),
+            'vacation_progress': round(vacation_progress, 2),
+            'user': user,
+            'stats': stats,
+            'all_requests': all_requests,
+            'team_members': detailed_members,
+            'calendar': calendar,
+        })
+    elif is_editor(user):
+        return render(request, 'dashboard_editor.html', {
+            'my_requests': my_requests,
+            'worked_days': worked_days,
+            'hours_planned': hours_planned,
+            'available_days': available_days,
+            'progress_percentage': round(progress_percentage, 2),
+            'hours_progress': round(hours_progress, 2),
+            'vacation_progress': round(vacation_progress, 2),
+            'user': user,
+            'calendar': calendar,
+        })
+    else:
+        return render(request, 'dashboard.html', {'user': user})
 
 # Табель
 @login_required
@@ -195,7 +291,7 @@ def leave_request(request):
         if form.is_valid():
             leave = form.save(commit=False)
             leave.user = request.user
-            leave.created_at = now()
+            leave.created_at = timezone.now()
 
             start = leave.start_date
             end = leave.end_date
@@ -204,12 +300,12 @@ def leave_request(request):
             # 1. Проверка даты начала и окончания
             if start > end:
                 messages.error(request, "Дата начала не может быть позже даты окончания.")
-                return redirect('leave_request')
+                return JsonResponse({'success': False, 'error': "Дата начала не может быть позже даты окончания."})
 
-            # 2. Запрет отпусков задним числом
+            # 1. Запрет отпуска задним числом (кроме больничного)
             if leave_type != 'sick' and start < date.today():
                 messages.error(request, "Нельзя подавать заявку на отпуск задним числом.")
-                return redirect('leave_request')
+                return JsonResponse({'success': False, 'error': "Нельзя подавать заявку на отпуск задним числом."})
 
             # 3. Проверка на пересекающиеся заявки
             overlapping = LeaveRequest.objects.filter(
@@ -220,8 +316,8 @@ def leave_request(request):
             ).exclude(id=leave.id)
 
             if overlapping.exists():
-                messages.error(request, "У вас уже есть перекрывающая заявка.")
-                return redirect('leave_request')
+                messages.error(request, "У вас уже есть активная заявка, перекрывающая эти даты.")
+                return JsonResponse({'success': False, 'error': "У вас уже есть активная заявка, перекрывающая эти даты."})
 
             # 4. Лимит ежегодного отпуска
             requested_days = (end - start).days + 1
@@ -234,9 +330,10 @@ def leave_request(request):
                         status='approved'
                     )
                 )
-                if requested_days > 44 - total_used:
-                    messages.error(request, f"Превышен лимит отпуска. Осталось {44 - total_used} дн.")
-                    return redirect('leave_request')
+                remaining = available_days - total_used
+                if requested_days > remaining:
+                    messages.error(request, f"Превышен лимит отпуска. Осталось {remaining} дн.")
+                    return JsonResponse({'success': False, 'error': f"Превышен лимит отпуска. Осталось {remaining} дн."})
                 if requested_days < 14:
                     messages.warning(request, "По ТК РФ хотя бы один отпуск должен быть не менее 14 дней.")
 
@@ -251,8 +348,12 @@ def leave_request(request):
                     end_date__gte=start
                 ).exists()
                 if conflict:
-                    messages.error(request, "Нельзя совмещать отпуск и больничный.")
-                    return redirect('leave_request')
+                    messages.error(
+                        request,
+                        f"{dict(LeaveRequest.TYPE_CHOICES)[leave_type]} не может пересекаться с {dict(LeaveRequest.TYPE_CHOICES)[opposite_type].lower()}."
+                    )
+                    return JsonResponse({'success': False, 'error': f"{dict(LeaveRequest.TYPE_CHOICES)[leave_type]} не может пересекаться с {dict(LeaveRequest.TYPE_CHOICES)[opposite_type].lower()}."})
+
 
             # 6. Устанавливаем статус
             leave.status = 'approved' if leave_type == 'sick' else 'pending'
@@ -263,8 +364,9 @@ def leave_request(request):
             asyncio.run(notify_approvers(message_text))  # Запуск асинхронной задачи через asyncio.run()
 
             messages.success(request, "Заявка успешно отправлена.")
-            return redirect('dashboard')
-
+            return JsonResponse({'success': True})
+        else:
+            return JsonResponse({'success': False, 'error': form.errors.as_json()})
     else:
         form = LeaveRequestForm()
 
@@ -288,8 +390,6 @@ def leave_request(request):
         'available_days': available_days
     })
 
-
-# Согласование заявок
 @login_required
 @user_passes_test(is_approver)
 def approve_requests(request):
@@ -300,7 +400,7 @@ def approve_requests(request):
         if leave.status == 'pending':
             leave.status = 'approved' if action == 'approve' else 'rejected'
             leave.reviewed_by = request.user
-            leave.reviewed_at = now()
+            leave.reviewed_at = timezone.now()  # Исправлено с now() на timezone.now()
             leave.save()
             messages.success(request, f"Заявка {'одобрена' if action == 'approve' else 'отклонена'}.")
 
@@ -318,39 +418,15 @@ def approve_requests(request):
         'selected_type': leave_type_filter
     })
 
-
-# Дополнительные роли
+# Редактирование табеля — только редактор
 @login_required
 @user_passes_test(is_editor)
 def edit_attendance(request):
     return render(request, 'stub.html')
 
-
+# Управление пользователями — только админ
 @login_required
 @user_passes_test(is_admin)
 def user_management(request):
     return render(request, 'stub.html')
 
-
-@csrf_exempt
-def telegram_login(request):
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            username = data.get('username')
-            password = data.get('password')
-            telegram_id = data.get('telegram_id')
-
-            user = authenticate(username=username, password=password)
-
-            if user is None:
-                return JsonResponse({"error": "Неверный логин или пароль"}, status=403)
-
-            # Привязываем
-            user.telegram_id = telegram_id
-            user.save()
-            return JsonResponse({"status": "ok", "message": "Telegram успешно привязан."})
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=400)
-
-    return JsonResponse({"error": "Bad request"}, status=400)

@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mx-auto px-6 py-6 max-w-7xl">
+    <div class="rt-header">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
+            <div class="flex items-center space-x-4">
+                <div class="rt-logo w-16 h-16 rounded-xl flex items-center justify-center text-2xl shadow-lg">
+                    <i class="fas fa-user-tie"></i>
+                </div>
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900 mb-2">
+                        <span id="greeting">
+                            {% now "H" as current_hour %}
+                            {% if current_hour|add:"0" < 12 %}Доброе утро
+                            {% elif current_hour|add:"0" < 18 %}Добрый день
+                            {% else %}Добрый вечер{% endif %}
+                        </span>, {{ user.get_full_name }}!
+                    </h1>
+                    <div class="flex items-center space-x-6 text-sm text-gray-600">
+                        <div class="flex items-center space-x-2">
+                            <span class="status-indicator"></span>
+                            <span class="font-medium">Онлайн</span>
+                        </div>
+                        <div id="current-datetime" class="flex items-center space-x-1">
+                            <i class="fas fa-clock"></i>
+                            <span>{% now "d.m.Y H:i" %}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <button class="rt-button-outline">
+                <i class="fas fa-sign-out-alt mr-2"></i>Выйти
+            </button>
+        </div>
+    </div>
+
+    <div class="notification-card rounded-xl p-6 mb-8">
+        <div class="flex items-center space-x-4">
+            <div class="rt-secondary w-12 h-12 rounded-xl flex items-center justify-center shadow-lg">
+                <i class="fas fa-info-circle text-xl"></i>
+            </div>
+            <div>
+                <h3 class="font-semibold text-blue-900 mb-2">Уведомление</h3>
+                <p class="text-blue-800 text-sm">Не забудьте отметить время прихода. У вас {{ available_days }} неиспользованных отпускных дней!</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Быстрые действия -->
+    <div class="mb-8">
+        <h3 class="rt-section-title"><i class="fas fa-bolt"></i>Быстрые действия</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <a href="{% url 'leave_request' %}" class="rt-quick-action">
+                <i class="fas fa-file-alt text-3xl"></i>
+                <p class="font-semibold text-gray-900">Новая заявка</p>
+            </a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+        <div class="rt-stat-card">
+            <div class="rt-stat-icon"><i class="fas fa-check-circle"></i></div>
+            <p class="text-gray-600 text-sm mb-2 font-medium">Отработано дней</p>
+            <p class="text-3xl font-bold text-gray-900 mb-2">{{ worked_days }}</p>
+            <div class="rt-progress mt-3"><div class="rt-progress-bar" style="width: {{ progress_percentage }}%"></div></div>
+        </div>
+        <div class="rt-stat-card">
+            <div class="rt-stat-icon blue"><i class="fas fa-clock"></i></div>
+            <p class="text-gray-600 text-sm mb-2 font-medium">Рабочих часов</p>
+            <p class="text-3xl font-bold text-gray-900 mb-2">{{ hours_planned }}</p>
+            <div class="rt-progress mt-3"><div class="rt-progress-bar" style="width: {{ hours_progress }}%"></div></div>
+        </div>
+        <div class="rt-stat-card">
+            <div class="rt-stat-icon green"><i class="fas fa-umbrella-beach"></i></div>
+            <p class="text-gray-600 text-sm mb-2 font-medium">Отпускные дни</p>
+            <p class="text-3xl font-bold text-gray-900 mb-2">{{ available_days }}</p>
+            <div class="rt-progress mt-3"><div class="rt-progress-bar" style="width: {{ vacation_progress }}%"></div></div>
+        </div>
+    </div>
+
+    <div class="mb-8">
+        <h3 class="rt-section-title"><i class="fas fa-paper-plane"></i>Последние заявки</h3>
+        <div class="space-y-4">
+            {% for request in my_requests %}
+                <div class="rt-request-card {{ request.status }}">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-4">
+                            <div class="rt-stat-icon {{ request.status }}">
+                                {% if request.leave_type == 'vacation' %}<i class="fas fa-umbrella-beach"></i>
+                                {% elif request.leave_type == 'sick' %}<i class="fas fa-home"></i>
+                                {% else %}<i class="fas fa-suitcase"></i>{% endif %}
+                            </div>
+                            <div>
+                                <p class="font-semibold text-gray-900">
+                                    {% if request.leave_type == 'vacation' %}Заявка на отпуск
+                                    {% elif request.leave_type == 'sick' %}Больничный
+                                    {% else %}Командировка{% endif %}
+                                </p>
+                                <p class="text-gray-500 text-sm">{{ request.start_date|date:"d.m.Y" }} - {{ request.end_date|date:"d.m.Y" }}</p>
+                            </div>
+                        </div>
+                        <span class="text-{{ request.status }}-600 text-sm font-medium bg-{{ request.status }}-100 px-3 py-1 rounded-full">
+                            {% if request.status == 'pending' %}На рассмотрении
+                            {% elif request.status == 'approved' %}Одобрено
+                            {% else %}Отклонено{% endif %}
+                        </span>
+                    </div>
+                </div>
+            {% empty %}
+                <p class="text-gray-500">Нет недавних заявок.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

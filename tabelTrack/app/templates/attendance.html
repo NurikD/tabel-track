@@ -3,67 +3,235 @@
 {% block title %}Мой табель{% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto p-6">
-  <div class="flex justify-between items-center mb-4">
-    <h2 class="text-2xl font-bold">📅 Табель учёта рабочего времени</h2>
+<div class="max-w-7xl mx-auto p-6">
+  <!-- Заголовок и фильтры -->
+  <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-4">
+    <div>
+      <h1 class="text-3xl font-bold text-gray-900 mb-2">📅 Табель учёта рабочего времени</h1>
+      <p class="text-gray-600">Отслеживайте рабочее время и планируйте отпуска</p>
+    </div>
 
     <!-- Фильтр -->
-    <form method="get" class="flex space-x-2">
-      <select name="month" class="border rounded px-2 py-1 text-sm">
-        {% for m in 1|to_range:12 %}
-          <option value="{{ m }}" {% if m == today.month %}selected{% endif %}>{{ m }}</option>
-        {% endfor %}
-      </select>
-      <select name="year" class="border rounded px-2 py-1 text-sm">
-        {% for y in year_range %}
-          <option value="{{ y }}" {% if y == today.year %}selected{% endif %}>{{ y }}</option>
-        {% endfor %}
-      </select>
-      <button class="bg-indigo-600 text-white px-3 py-1 rounded text-sm hover:bg-indigo-700">
+    <form method="get" class="flex items-center space-x-3 bg-white rounded-xl shadow-sm p-4 border">
+      <div class="flex items-center space-x-2">
+        <label class="text-sm font-medium text-gray-700">Месяц:</label>
+        <select name="month" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500">
+          {% for m in 1|to_range:12 %}
+            <option value="{{ m }}" {% if m == today.month %}selected{% endif %}>
+              {% if m == 1 %}Январь{% elif m == 2 %}Февраль{% elif m == 3 %}Март{% elif m == 4 %}Апрель{% elif m == 5 %}Май{% elif m == 6 %}Июнь{% elif m == 7 %}Июль{% elif m == 8 %}Август{% elif m == 9 %}Сентябрь{% elif m == 10 %}Октябрь{% elif m == 11 %}Ноябрь{% elif m == 12 %}Декабрь{% endif %}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="flex items-center space-x-2">
+        <label class="text-sm font-medium text-gray-700">Год:</label>
+        <select name="year" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500">
+          {% for y in year_range %}
+            <option value="{{ y }}" {% if y == today.year %}selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <button class="bg-red-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors shadow-sm">
         Показать
       </button>
     </form>
   </div>
 
-  <!-- Легенда -->
-  <div class="flex flex-wrap gap-4 mb-4 text-sm text-gray-600">
-    <div class="flex items-center"><div class="w-4 h-4 bg-green-300 rounded mr-1"></div>Работа</div>
-    <div class="flex items-center"><div class="w-4 h-4 bg-blue-300 rounded mr-1"></div>Отпуск</div>
-    <div class="flex items-center"><div class="w-4 h-4 bg-yellow-300 rounded mr-1"></div>Больничный</div>
-    <div class="flex items-center"><div class="w-4 h-4 bg-red-300 rounded mr-1"></div>Неявка</div>
-    <div class="flex items-center"><div class="w-4 h-4 bg-orange-300 rounded mr-1"></div>Выходной</div>
-    <div class="flex items-center"><div class="w-4 h-4 bg-gray-400 rounded mr-1"></div>Праздник 🎉</div>
+  <!-- Статистические карточки -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium text-gray-600 mb-1">Отработано дней</p>
+          <p class="text-2xl font-bold text-gray-900">22</p>
+          <p class="text-xs text-gray-500">из 23 дней в месяце</p>
+        </div>
+        <div class="w-12 h-12 bg-red-50 rounded-lg flex items-center justify-center">
+          <div class="w-6 h-6 bg-red-500 rounded-full"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium text-gray-600 mb-1">Рабочих часов</p>
+          <p class="text-2xl font-bold text-gray-900">176</p>
+          <p class="text-xs text-gray-500">из 184 часов</p>
+        </div>
+        <div class="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
+          <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium text-gray-600 mb-1">Отпускные дни</p>
+          <p class="text-2xl font-bold text-gray-900">12</p>
+          <p class="text-xs text-gray-500">дней осталось</p>
+        </div>
+        <div class="w-12 h-12 bg-green-50 rounded-lg flex items-center justify-center">
+          <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium text-gray-600 mb-1">Активные заявки</p>
+          <p class="text-2xl font-bold text-gray-900">3</p>
+          <p class="text-xs text-gray-500">в обработке</p>
+        </div>
+        <div class="w-12 h-12 bg-orange-50 rounded-lg flex items-center justify-center">
+          <svg class="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/>
+          </svg>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <!-- Сетка -->
-  <div class="grid grid-cols-7 gap-2 text-center text-sm font-medium">
-    {% for d in weekdays %}
-      <div class="py-2 text-gray-500">{{ d }}</div>
-    {% endfor %}
-
-    {% for day in calendar %}
-    {% if day.date %}
-      <div class="rounded-lg p-2 h-24 flex flex-col justify-between relative shadow-sm transition hover:scale-[1.02]
-        {% if day.status == 'work' %}bg-green-200
-        {% elif day.status == 'vacation' %}bg-blue-200
-        {% elif day.status == 'sick' %}bg-yellow-200
-        {% elif day.status == 'absent' %}bg-red-200
-        {% elif day.status == 'weekend' %}bg-orange-200
-        {% elif day.status == 'holiday' %}bg-gray-300
-        {% else %}bg-gray-100{% endif %}">
-        
-        <div class="text-sm font-semibold">{{ day.date.day }}</div>
-        <div class="text-xs text-gray-700 leading-tight">{{ day.status_label }}</div>
-        <div class="text-[10px] text-gray-600">Норма: {{ day.hours_planned }} ч</div>
-  
-        {% if day.date == today %}
-          <span class="absolute top-1 right-1 bg-white border text-xs rounded px-1 font-semibold text-indigo-500">Сегодня</span>
-        {% endif %}
+  <!-- Легенда -->
+  <div class="bg-white rounded-xl shadow-sm p-6 mb-8 border border-gray-100">
+    <h3 class="text-lg font-semibold text-gray-900 mb-4">Обозначения</h3>
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div class="flex items-center space-x-2">
+        <div class="w-4 h-4 bg-green-500 rounded-full shadow-sm"></div>
+        <span class="text-sm text-gray-700 font-medium">Работа</span>
       </div>
-    {% else %}
-      <div class="p-2 h-24"></div> <!-- Пустая ячейка -->
-    {% endif %}
-  {% endfor %}  
+      <div class="flex items-center space-x-2">
+        <div class="w-4 h-4 bg-blue-500 rounded-full shadow-sm"></div>
+        <span class="text-sm text-gray-700 font-medium">Отпуск</span>
+      </div>
+      <div class="flex items-center space-x-2">
+        <div class="w-4 h-4 bg-yellow-500 rounded-full shadow-sm"></div>
+        <span class="text-sm text-gray-700 font-medium">Больничный</span>
+      </div>
+      <div class="flex items-center space-x-2">
+        <div class="w-4 h-4 bg-red-500 rounded-full shadow-sm"></div>
+        <span class="text-sm text-gray-700 font-medium">Неявка</span>
+      </div>
+      <div class="flex items-center space-x-2">
+        <div class="w-4 h-4 bg-orange-500 rounded-full shadow-sm"></div>
+        <span class="text-sm text-gray-700 font-medium">Выходной</span>
+      </div>
+      <div class="flex items-center space-x-2">
+        <div class="w-4 h-4 bg-gray-500 rounded-full shadow-sm"></div>
+        <span class="text-sm text-gray-700 font-medium">Праздник 🎉</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Календарь -->
+  <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="p-6">
+      <div class="grid grid-cols-7 gap-2 mb-4">
+        {% for d in weekdays %}
+          <div class="text-center py-3 text-sm font-semibold text-gray-900 bg-gray-50 rounded-lg">{{ d }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="grid grid-cols-7 gap-2">
+        {% for day in calendar %}
+        {% if day.date %}
+          <div class="relative group">
+            <div class="rounded-xl p-4 h-28 flex flex-col justify-between transition-all duration-200 hover:scale-105 hover:shadow-md cursor-pointer
+              {% if day.status == 'work' %}bg-green-50 border-2 border-green-200 hover:border-green-300
+              {% elif day.status == 'vacation' %}bg-blue-50 border-2 border-blue-200 hover:border-blue-300
+              {% elif day.status == 'sick' %}bg-yellow-50 border-2 border-yellow-200 hover:border-yellow-300
+              {% elif day.status == 'absent' %}bg-red-50 border-2 border-red-200 hover:border-red-300
+              {% elif day.status == 'weekend' %}bg-orange-50 border-2 border-orange-200 hover:border-orange-300
+              {% elif day.status == 'holiday' %}bg-gray-100 border-2 border-gray-300 hover:border-gray-400
+              {% else %}bg-gray-50 border-2 border-gray-200 hover:border-gray-300{% endif %}">
+
+              <div class="flex justify-between items-start">
+                <span class="text-lg font-bold text-gray-900">{{ day.date.day }}</span>
+                {% if day.status == 'work' %}
+                  <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                {% elif day.status == 'vacation' %}
+                  <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
+                {% elif day.status == 'sick' %}
+                  <div class="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                {% elif day.status == 'absent' %}
+                  <div class="w-2 h-2 bg-red-500 rounded-full"></div>
+                {% elif day.status == 'weekend' %}
+                  <div class="w-2 h-2 bg-orange-500 rounded-full"></div>
+                {% elif day.status == 'holiday' %}
+                  <div class="w-2 h-2 bg-gray-500 rounded-full"></div>
+                {% endif %}
+              </div>
+
+              <div class="space-y-1">
+                <div class="text-xs font-medium
+                  {% if day.status == 'work' %}text-green-700
+                  {% elif day.status == 'vacation' %}text-blue-700
+                  {% elif day.status == 'sick' %}text-yellow-700
+                  {% elif day.status == 'absent' %}text-red-700
+                  {% elif day.status == 'weekend' %}text-orange-700
+                  {% elif day.status == 'holiday' %}text-gray-700
+                  {% else %}text-gray-600{% endif %}">
+                  {{ day.status_label }}
+                </div>
+                <div class="text-xs text-gray-500 font-medium">{{ day.hours_planned }} ч</div>
+              </div>
+
+              {% if day.date == today %}
+                <div class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold shadow-lg">
+                  •
+                </div>
+              {% endif %}
+            </div>
+
+            <!-- Tooltip при наведении -->
+            <div class="invisible group-hover:visible absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-10 whitespace-nowrap">
+              {{ day.date.day }} - {{ day.status_label }} ({{ day.hours_planned }} ч)
+              <div class="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45"></div>
+            </div>
+          </div>
+        {% else %}
+          <div class="p-4 h-28"></div> <!-- Пустая ячейка -->
+        {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Быстрые действия -->
+  <div class="mt-8 flex flex-col sm:flex-row gap-4">
+    <button class="bg-red-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-red-700 transition-colors shadow-sm flex items-center justify-center space-x-2">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+      </svg>
+      <span>Подать заявку на отпуск</span>
+    </button>
+
+    <button class="bg-white text-gray-700 px-6 py-3 rounded-xl font-medium hover:bg-gray-50 transition-colors shadow-sm border border-gray-200 flex items-center justify-center space-x-2">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+      </svg>
+      <span>Экспорт табеля</span>
+    </button>
   </div>
 </div>
+
+<style>
+/* Дополнительные стили для анимаций */
+@keyframes pulse-today {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.pulse-today {
+  animation: pulse-today 2s infinite;
+}
+</style>
 {% endblock %}

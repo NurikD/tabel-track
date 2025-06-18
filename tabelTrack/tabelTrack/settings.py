@@ -25,7 +25,11 @@ SECRET_KEY = 'django-insecure-er_f6m*_@2xn#lk=b3_qy7e%^m)&si1%3-!k!^2%k6%%t)rn+b
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+CSRF_TRUSTED_ORIGINS = [
+    'https://a88b-62-112-30-127.ngrok-free.app'
+]
+
+ALLOWED_HOSTS = ['a88b-62-112-30-127.ngrok-free.app', '127.0.0.1']
 
 
 # Application definition
@@ -127,5 +131,17 @@ AUTH_USER_MODEL = 'app.CustomUser'
 LOGIN_REDIRECT_URL = '/'
 
 LOGOUT_REDIRECT_URL = '/accounts/login/'
+
+LANGUAGE_CODE = 'ru'  # Устанавливаем русский язык по умолчанию
+TIME_ZONE = 'Europe/Moscow'  # Устанавливаем часовой пояс Москвы
+USE_I18N = True  # Включаем использование локализации
+USE_L10N = True  # Включаем локализацию данных (дат, чисел и т.д.)
+
+# В settings.py
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'nurjjt@gmail.com'  # Замени на свой email
 
 
