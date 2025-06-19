@@ -13,6 +13,8 @@ from .forms import LeaveRequestForm
 from .utils.holidays import get_holidays_from_api
 from django.db.models import Q
 
+from app.tasks import notify_approver_email
+from app.tasks import send_result_to_employee
 
 # Ролевые проверки
 def is_worker(user): return user.role == 'worker'
@@ -281,7 +283,6 @@ def attendance(request):
         'weekdays': weekdays,
     })
 
-
 @login_required
 @user_passes_test(is_worker)
 def leave_request(request):
@@ -296,14 +297,23 @@ def leave_request(request):
             end = leave.end_date
             leave_type = leave.leave_type
 
+            # Расчёт оставшегося отпуска — должен быть до проверок
+            total_used = sum(
+                (r.end_date - r.start_date).days + 1
+                for r in LeaveRequest.objects.filter(
+                    user=request.user,
+                    leave_type='vacation',
+                    status='approved'
+                )
+            )
+            available_days = 44 - total_used
+
             # 1. Проверка даты начала и окончания
             if start > end:
-                messages.error(request, "Дата начала не может быть позже даты окончания.")
                 return JsonResponse({'success': False, 'error': "Дата начала не может быть позже даты окончания."})
 
-            # 1. Запрет отпуска задним числом (кроме больничного)
+            # 2. Запрет отпуска задним числом (кроме больничного)
             if leave_type != 'sick' and start < date.today():
-                messages.error(request, "Нельзя подавать заявку на отпуск задним числом.")
                 return JsonResponse({'success': False, 'error': "Нельзя подавать заявку на отпуск задним числом."})
 
             # 3. Проверка на пересекающиеся заявки
@@ -315,28 +325,17 @@ def leave_request(request):
             ).exclude(id=leave.id)
 
             if overlapping.exists():
-                messages.error(request, "У вас уже есть активная заявка, перекрывающая эти даты.")
                 return JsonResponse({'success': False, 'error': "У вас уже есть активная заявка, перекрывающая эти даты."})
 
-            # 4. Лимит ежегодного отпуска
+            # 4. Лимит отпуска
             requested_days = (end - start).days + 1
             if leave_type == 'vacation':
-                total_used = sum(
-                    (r.end_date - r.start_date).days + 1
-                    for r in LeaveRequest.objects.filter(
-                        user=request.user,
-                        leave_type='vacation',
-                        status='approved'
-                    )
-                )
-                remaining = available_days - total_used
-                if requested_days > remaining:
-                    messages.error(request, f"Превышен лимит отпуска. Осталось {remaining} дн.")
-                    return JsonResponse({'success': False, 'error': f"Превышен лимит отпуска. Осталось {remaining} дн."})
+                if requested_days > available_days:
+                    return JsonResponse({'success': False, 'error': f"Превышен лимит отпуска. Осталось {available_days} дн."})
                 if requested_days < 14:
                     messages.warning(request, "По ТК РФ хотя бы один отпуск должен быть не менее 14 дней.")
 
-            # 5. Проверка совмещения отпуск ↔ больничный
+            # 5. Проверка совмещения
             opposite_type = 'sick' if leave_type == 'vacation' else 'vacation' if leave_type == 'sick' else None
             if opposite_type:
                 conflict = LeaveRequest.objects.filter(
@@ -347,41 +346,47 @@ def leave_request(request):
                     end_date__gte=start
                 ).exists()
                 if conflict:
-                    messages.error(
-                        request,
-                        f"{dict(LeaveRequest.TYPE_CHOICES)[leave_type]} не может пересекаться с {dict(LeaveRequest.TYPE_CHOICES)[opposite_type].lower()}."
-                    )
                     return JsonResponse({'success': False, 'error': f"{dict(LeaveRequest.TYPE_CHOICES)[leave_type]} не может пересекаться с {dict(LeaveRequest.TYPE_CHOICES)[opposite_type].lower()}."})
 
-
-            # 6. Устанавливаем статус
+            # 6. Сохраняем
             leave.status = 'approved' if leave_type == 'sick' else 'pending'
             leave.save()
+
+            # 7. Отправка уведомлений согласующим
+            approvers = CustomUser.objects.filter(role='approver').values_list('email', flat=True)
+            for email in approvers:
+                notify_approver_email.delay(
+                    leave.user.get_full_name(),
+                    leave.get_leave_type_display(),
+                    leave.start_date.strftime('%d.%m.%Y'),
+                    leave.end_date.strftime('%d.%m.%Y'),
+                    email
+                )
+
             return JsonResponse({'success': True})
         else:
             return JsonResponse({'success': False, 'error': form.errors.as_json()})
+
     else:
         form = LeaveRequestForm()
+        my_requests = LeaveRequest.objects.filter(user=request.user).order_by('-created_at')
 
-    # Заявки пользователя
-    my_requests = LeaveRequest.objects.filter(user=request.user).order_by('-created_at')
-
-    # Расчёт оставшегося отпуска
-    total_used = sum(
-        (r.end_date - r.start_date).days + 1
-        for r in LeaveRequest.objects.filter(
-            user=request.user,
-            leave_type='vacation',
-            status='approved'
+        total_used = sum(
+            (r.end_date - r.start_date).days + 1
+            for r in LeaveRequest.objects.filter(
+                user=request.user,
+                leave_type='vacation',
+                status='approved'
+            )
         )
-    )
-    available_days = 44 - total_used
+        available_days = 44 - total_used
 
-    return render(request, 'leave_request.html', {
-        'form': form,
-        'my_requests': my_requests,
-        'available_days': available_days
-    })
+        return render(request, 'leave_request.html', {
+            'form': form,
+            'my_requests': my_requests,
+            'available_days': available_days
+        })
+
 
 @login_required
 @user_passes_test(is_approver)
@@ -390,12 +395,26 @@ def approve_requests(request):
         request_id = request.POST.get('request_id')
         action = request.POST.get('action')
         leave = LeaveRequest.objects.get(id=request_id)
+
         if leave.status == 'pending':
             leave.status = 'approved' if action == 'approve' else 'rejected'
             leave.reviewed_by = request.user
-            leave.reviewed_at = timezone.now()  # Исправлено с now() на timezone.now()
+            leave.reviewed_at = timezone.now()
             leave.save()
-            messages.success(request, f"Заявка {'одобрена' if action == 'approve' else 'отклонена'}.")
+
+            # ✉️ Уведомление сотрудника о результате
+            send_result_to_employee.delay(
+                leave.user.email,
+                leave.get_leave_type_display(),
+                leave.start_date.strftime('%d.%m.%Y'),
+                leave.end_date.strftime('%d.%m.%Y'),
+                leave.status
+            )
+
+            messages.success(
+                request,
+                f"Заявка {'одобрена' if action == 'approve' else 'отклонена'}."
+            )
 
         return redirect('approve_requests')
 
