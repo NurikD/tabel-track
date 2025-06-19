@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -137,11 +138,23 @@ TIME_ZONE = 'Europe/Moscow'  # Устанавливаем часовой поя�
 USE_I18N = True  # Включаем использование локализации
 USE_L10N = True  # Включаем локализацию данных (дат, чисел и т.д.)
 
+
+# Настройки Celery
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
+
 # В settings.py
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'nurjjt@gmail.com'  # Замени на свой email
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')  # Замени на свой email
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD ')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL')
+SITE_URL = 'http://127.0.0.1:8000'
 
 
