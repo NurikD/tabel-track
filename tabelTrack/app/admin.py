@@ -13,7 +13,6 @@ class CustomUserAdmin(UserAdmin):
                 'shift_type',
                 'shift_start_date',
                 'position',
-                'telegram_id',
             )
         }),
     )
