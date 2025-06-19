@@ -8,7 +8,6 @@ from django.contrib import messages
 from django.utils import timezone
 from django.conf import settings
 
-from tabelTrack.app.telegram_utils import notify_approvers
 from .models import CustomUser, LeaveRequest
 from .forms import LeaveRequestForm
 from .utils.holidays import get_holidays_from_api
@@ -358,12 +357,6 @@ def leave_request(request):
             # 6. Устанавливаем статус
             leave.status = 'approved' if leave_type == 'sick' else 'pending'
             leave.save()
-
-            # 7. Уведомление руководителям через asyncio.run()
-            message_text = f"📩 Новая заявка от {leave.user.get_full_name()} на {leave.get_leave_type_display()} ({start} — {end})"
-            asyncio.run(notify_approvers(message_text))  # Запуск асинхронной задачи через asyncio.run()
-
-            messages.success(request, "Заявка успешно отправлена.")
             return JsonResponse({'success': True})
         else:
             return JsonResponse({'success': False, 'error': form.errors.as_json()})

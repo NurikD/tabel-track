@@ -8,11 +8,11 @@ class AppConfig(AppConfig):
 
 from django.test import TestCase
 from django.core.exceptions import ValidationError
-from .models import Request
 
 
 class RequestModelTest(TestCase):
     def test_invalid_date_range(self):
+        from .models import Request
         with self.assertRaises(ValidationError):
             Request.objects.create(
                 user_id=1,
