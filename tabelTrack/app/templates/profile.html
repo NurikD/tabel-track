@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Профиль сотрудника</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f6fa;
+            color: #2c3e50;
+        }
+
+        /* Profile Page Styles */
+        .profile-container {
+            padding: 24px;
+            background-color: #f5f6fa;
+            min-height: 100vh;
+        }
+
+        /* Header Section */
+        .profile-header {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .profile-greeting {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .greeting-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #d32f2f, #f44336);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            margin-right: 20px;
+        }
+
+        .greeting-content h1 {
+            font-size: 32px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin: 0 0 8px 0;
+        }
+
+        .profile-status {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #27ae60;
+        }
+
+        .status-indicator.online {
+            background-color: #27ae60;
+        }
+
+        .status-indicator.offline {
+            background-color: #e74c3c;
+        }
+
+        .btn-edit {
+            background: #d32f2f;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-edit:hover {
+            background: #b71c1c;
+            transform: translateY(-2px);
+        }
+
+        /* Info Cards Grid */
+        .profile-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .info-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .info-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .info-card.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        .card-header h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin: 0;
+        }
+
+        .card-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #d32f2f, #f44336);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 16px;
+        }
+
+        /* Profile Avatar */
+        .profile-avatar {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 20px;
+        }
+
+        .profile-avatar img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid #ecf0f1;
+        }
+
+        .avatar-status {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 3px solid white;
+            background-color: #27ae60;
+        }
+
+        /* Detail Rows */
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-row .label {
+            font-weight: 500;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        .detail-row .value {
+            font-weight: 500;
+            color: #2c3e50;
+            font-size: 14px;
+            text-align: right;
+        }
+
+        /* Work Statistics */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .stat-item:hover {
+            background: #e9ecef;
+            transform: scale(1.02);
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+        }
+
+        .stat-icon.work-days {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+        }
+
+        .stat-icon.work-hours {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+        }
+
+        .stat-icon.vacation-days {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+        }
+
+        .stat-icon.active-requests {
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+        }
+
+        .stat-content {
+            flex: 1;
+        }
+
+        .stat-number {
+            font-size: 24px;
+            font-weight: 700;
+            color: #2c3e50;
+            line-height: 1;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #2c3e50;
+            margin: 4px 0 2px;
+        }
+
+        .stat-subtitle {
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+
+        /* Manager Info */
+        .manager-info {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .manager-avatar {
+            width: 80px;
+            height: 80px;
+            flex-shrink: 0;
+        }
+
+        .manager-avatar img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #ecf0f1;
+        }
+
+        .manager-details {
+            flex: 1;
+        }
+
+        /* Activity List */
+        .activity-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .activity-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            padding: 16px 0;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+
+        .activity-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .activity-icon.work {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+        }
+
+        .activity-icon.vacation {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+        }
+
+        .activity-icon.request {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+        }
+
+        .activity-icon.system {
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+        }
+
+        .activity-content {
+            flex: 1;
+        }
+
+        .activity-title {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .activity-description {
+            color: #7f8c8d;
+            font-size: 13px;
+            margin-bottom: 4px;
+        }
+
+        .activity-time {
+            color: #95a5a6;
+            font-size: 12px;
+        }
+
+        .no-activity {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        .no-activity i {
+            display: block;
+            font-size: 48px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+
+        /* Quick Actions */
+        .quick-actions {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .quick-actions h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin: 0 0 20px 0;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        .actions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .action-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #2c3e50;
+            font-weight: 500;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn:hover {
+            background: #d32f2f;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(211, 47, 47, 0.3);
+        }
+
+        .action-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #d32f2f, #f44336);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn:hover .action-icon {
+            background: linear-gradient(135deg, #fff, #f8f9fa);
+            color: #d32f2f;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .profile-container {
+                padding: 16px;
+            }
+
+            .profile-greeting {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 16px;
+            }
+
+            .greeting-icon {
+                margin-right: 0;
+            }
+
+            .profile-info-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .manager-info {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .actions-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .greeting-content h1 {
+                font-size: 24px;
+            }
+
+            .profile-status {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
+            .card-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+
+            .detail-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+            }
+
+            .detail-row .value {
+                text-align: left;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="profile-container">
+        <!-- Header Section -->
+        <div class="profile-header">
+            <div class="profile-greeting">
+                <div class="greeting-icon">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="greeting-content">
+                    <h1>Профиль сотрудника</h1>
+                    <div class="profile-status">
+                        <span class="status-indicator online"></span>
+                        <span class="status-text">В работе</span>
+                        <span class="timestamp">13 июн 2025 г. в 14:30</span>
+                        <span class="location">IT отдел</span>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <button class="btn-edit">Редактировать</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile Info Cards -->
+        <div class="profile-info-grid">
+            <!-- Personal Info Card -->
+            <div class="info-card">
+                <div class="card-header">
+                    <h3>Личная информация</h3>
+                    <div class="card-icon">
+                        <i class="fas fa-user-circle"></i>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <div class="profile-avatar">
+                        <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face" alt="Фото сотрудника">
+                        <div class="avatar-status online"></div>
+                    </div>
+                    <div class="profile-details">
+                        <div class="detail-row">
+                            <span class="label">ФИО:</span>
+                            <span class="value">Петров Иван Сергеевич</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="label">Должность:</span>
+                            <span class="value">Старший разработчик</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="label">Подразделение:</span>
+                            <span class="value">IT отдел</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="label">Табельный номер:</span>
+                            <span class="value">001234</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="label">Дата приема:</span>
+                            <span class="value">15.03.2020</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contact Info Card -->
+            <div class="info-card">
+                <div class="card-header">
+                    <h3>Контактная информация</h3>
+                    <div class="card-icon">
+                        <i class="fas fa-address-book"></i>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <div class="detail-row">
+                        <span class="label">Email:</span>
+                        <span class="value">i.petrov@company.com</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Телефон:</span>
+                        <span class="value">+7 (999) 123-45-67</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Внутренний номер:</span>
+                        <span class="value">1234</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Адрес:</span>
+                        <span class="value">г. Москва, ул. Тверская, д. 12</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Work Statistics Card -->
+            <div class="info-card">
+                <div class="card-header">
+                    <h3>Статистика работы</h3>
+                    <div class="card-icon">
+                        <i class="fas fa-chart-bar"></i>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-icon work-days">
+                                <i class="fas fa-calendar-check"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-number">22</div>
+                                <div class="stat-label">Отработано дней</div>
+                                <div class="stat-subtitle">из 23 дней в месяце</div>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-icon work-hours">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-number">176</div>
+                                <div class="stat-label">Рабочих часов</div>
+                                <div class="stat-subtitle">из 184 часов</div>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-icon vacation-days">
+                                <i class="fas fa-umbrella-beach"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-number">12</div>
+                                <div class="stat-label">Отпускные дни</div>
+                                <div class="stat-subtitle">дней осталось</div>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-icon active-requests">
+                                <i class="fas fa-file-alt"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-number">3</div>
+                                <div class="stat-label">Активные заявки</div>
+                                <div class="stat-subtitle">в обработке</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Manager Info Card -->
+            <div class="info-card">
+                <div class="card-header">
+                    <h3>Руководитель</h3>
+                    <div class="card-icon">
+                        <i class="fas fa-user-tie"></i>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <div class="manager-info">
+                        <div class="manager-avatar">
+                            <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&h=80&fit=crop&crop=face" alt="Фото руководителя">
+                        </div>
+                        <div class="manager-details">
+                            <div class="detail-row">
+                                <span class="label">ФИО:</span>
+                                <span class="value">Сидоров Алексей Петрович</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="label">Должность:</span>
+                                <span class="value">Руководитель IT отдела</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="label">Email:</span>
+                                <span class="value">a.sidorov@company.com</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="label">Телефон:</span>
+                                <span class="value">+7 (999) 987-65-43</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity Card -->
+            <div class="info-card full-width">
+                <div class="card-header">
+                    <h3>Последняя активность</h3>
+                    <div class="card-icon">
+                        <i class="fas fa-history"></i>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <div class="activity-list">
+                        <div class="activity-item">
+                            <div class="activity-icon work">
+                                <i class="fas fa-laptop-code"></i>
+                            </div>
+                            <div class="activity-content">
+                                <div class="activity-title">Завершена задача по разработке</div>
+                                <div class="activity-description">Реализован новый модуль аутентификации пользователей</div>
+                                <div class="activity-time">13.06.2025 12:30</div>
+                            </div>
+                        </div>
+                        <div class="activity-item">
+                            <div class="activity-icon request">
+                                <i class="fas fa-file-alt"></i>
+                            </div>
+                            <div class="activity-content">
+                                <div class="activity-title">Подана заявка на отпуск</div>
+                                <div class="activity-description">Заявка на отпуск с 01.07.2025 по 14.07.2025</div>
+                                <div class="activity-time">12.06.2025 16:45</div>
+                            </div>
+                        </div>
+                        <div class="activity-item">
+                            <div class="activity-icon system">
+                                <i class="fas fa-cog"></i>
+                            </div>
+                            <div class="activity-content">
+                                <div class="activity-title">Обновление профиля</div>
+                                <div class="activity-description">Обновлены контактные данные</div>
+                                <div class="activity-time">10.06.2025 09:15</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="quick-actions">
+            <h3>Быстрые действия</h3>
+            <div class="actions-grid">
+                <a href="#" class="action-btn">
+                    <div class="action-icon">
+                        <i class="fas fa-calendar-alt"></i>
+                    </div>
+                    <span>Мой табель</span>
+                </a>
+                <a href="#" class="action-btn">
+                    <div class="action-icon">
+                        <i class="fas fa-plus-circle"></i>
+                    </div>
+                    <span>Новая заявка</span>
+                </a>
+                <a href="#" class="action-btn">
+                    <div class="action-icon">
+                        <i class="fas fa-umbrella-beach"></i>
+                    </div>
+                    <span>Отпуска</span>
+                </a>
+                <a href="#" class="action-btn">
+                    <div class="action-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <span>Отчеты</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

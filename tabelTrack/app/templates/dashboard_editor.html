@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mx-auto px-6 py-6 max-w-7xl">
+    <div class="rt-header">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
+            <div class="flex items-center space-x-4">
+                <div class="rt-logo w-16 h-16 rounded-xl flex items-center justify-center text-2xl shadow-lg">
+                    <i class="fas fa-user-tie"></i>
+                </div>
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900 mb-2">
+                        <span id="greeting">
+                            {% now "H" as current_hour %}
+                            {% if current_hour|add:"0" < 12 %}Доброе утро
+                            {% elif current_hour|add:"0" < 18 %}Добрый день
+                            {% else %}Добрый вечер{% endif %}
+                        </span>, {{ user.get_full_name }}!
+                    </h1>
+                    <div class="flex items-center space-x-6 text-sm text-gray-600">
+                        <div class="flex items-center space-x-2">
+                            <span class="status-indicator"></span>
+                            <span class="font-medium">Онлайн</span>
+                        </div>
+                        <div id="current-datetime" class="flex items-center space-x-1">
+                            <i class="fas fa-clock"></i>
+                            <span>{% now "d.m.Y H:i" %}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <button class="rt-button-outline">
+                <i class="fas fa-sign-out-alt mr-2"></i>Выйти
+            </button>
+        </div>
+    </div>
+
+    <div class="notification-card rounded-xl p-6 mb-8">
+        <div class="flex items-center space-x-4">
+            <div class="rt-secondary w-12 h-12 rounded-xl flex items-center justify-center shadow-lg">
+                <i class="fas fa-info-circle text-xl"></i>
+            </div>
+            <div>
+                <h3 class="font-semibold text-blue-900 mb-2">Уведомление</h3>
+                <p class="text-blue-800 text-sm">Проверьте и обновите табель сотрудников.</p>
+            </div>
+        </div>
+    </div>
+
+    <a href="{% url 'edit_attendance' %}" class="rt-quick-action mb-8 block">
+        <i class="fas fa-edit text-3xl"></i>
+        <p class="font-semibold text-gray-900">Редактировать табель</p>
+    </a>
+
+    <div class="mb-8">
+        <h3 class="rt-section-title"><i class="fas fa-user"></i>Мои данные</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+            <div class="rt-stat-card">
+                <div class="rt-stat-icon"><i class="fas fa-check-circle"></i></div>
+                <p class="text-gray-600 text-sm mb-2 font-medium">Отработано дней</p>
+                <p class="text-3xl font-bold text-gray-900 mb-2">{{ worked_days }}</p>
+                <div class="rt-progress mt-3"><div class="rt-progress-bar" style="width: {{ progress_percentage }}%"></div></div>
+            </div>
+            <div class="rt-stat-card">
+                <div class="rt-stat-icon green"><i class="fas fa-umbrella-beach"></i></div>
+                <p class="text-gray-600 text-sm mb-2 font-medium">Отпускные дни</p>
+                <p class="text-3xl font-bold text-gray-900 mb-2">{{ available_days }}</p>
+                <div class="rt-progress mt-3"><div class="rt-progress-bar" style="width: {{ vacation_progress }}%"></div></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
