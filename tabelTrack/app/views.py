@@ -1,6 +1,7 @@
 import asyncio
 from datetime import date
 from calendar import monthrange
+import json
 from django.shortcuts import redirect, render
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import JsonResponse
@@ -15,6 +16,9 @@ from django.db.models import Q
 
 from app.tasks import notify_approver_email
 from app.tasks import send_result_to_employee
+
+from .models import TelegramLinkCode
+from django.utils.crypto import get_random_string
 
 # Ролевые проверки
 def is_worker(user): return user.role == 'worker'
@@ -353,6 +357,7 @@ def leave_request(request):
             leave.save()
 
             # 7. Отправка уведомлений согласующим
+            # Email уведомления (существующая логика)
             approvers = CustomUser.objects.filter(role='approver').values_list('email', flat=True)
             for email in approvers:
                 notify_approver_email.delay(
@@ -361,6 +366,17 @@ def leave_request(request):
                     leave.start_date.strftime('%d.%m.%Y'),
                     leave.end_date.strftime('%d.%m.%Y'),
                     email
+                )
+
+            # ✅ НОВОЕ: Telegram уведомления для согласующих
+            if leave.status == 'pending':  # Только для заявок, требующих согласования
+                from app.tasks import notify_approver_telegram
+                notify_approver_telegram.delay(
+                    request_id=leave.id,
+                    employee_full_name=leave.user.get_full_name(),
+                    leave_type=leave.get_leave_type_display(),
+                    start_date=leave.start_date.strftime('%d.%m.%Y'),
+                    end_date=leave.end_date.strftime('%d.%m.%Y')
                 )
 
             return JsonResponse({'success': True})
@@ -402,7 +418,7 @@ def approve_requests(request):
             leave.reviewed_at = timezone.now()
             leave.save()
 
-            # ✉️ Уведомление сотрудника о результате
+            # ✉️ Email уведомление сотрудника о результате
             send_result_to_employee.delay(
                 leave.user.email,
                 leave.get_leave_type_display(),
@@ -410,6 +426,17 @@ def approve_requests(request):
                 leave.end_date.strftime('%d.%m.%Y'),
                 leave.status
             )
+
+            # ✅ НОВОЕ: Telegram уведомление сотрудника
+            if leave.user.telegram_id:
+                from app.tasks import notify_employee_telegram
+                notify_employee_telegram.delay(
+                    employee_telegram_id=leave.user.telegram_id,
+                    leave_type=leave.get_leave_type_display(),
+                    start_date=leave.start_date.strftime('%d.%m.%Y'),
+                    end_date=leave.end_date.strftime('%d.%m.%Y'),
+                    status=leave.status
+                )
 
             messages.success(
                 request,
@@ -430,6 +457,67 @@ def approve_requests(request):
         'selected_type': leave_type_filter
     })
 
+
+# ✅ НОВОЕ: API endpoint для обработки согласования через Telegram
+@login_required
+def telegram_approve_request(request):
+    """API endpoint для согласования заявок через Telegram бота"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            request_id = data.get('request_id')
+            action = data.get('action')  # 'approve' или 'reject'
+            telegram_id = data.get('telegram_id')
+
+            # Проверяем, что пользователь с данным telegram_id имеет права approver
+            try:
+                approver = CustomUser.objects.get(telegram_id=telegram_id, role='approver')
+            except CustomUser.DoesNotExist:
+                return JsonResponse({'success': False, 'error': 'Нет прав на согласование'})
+
+            # Получаем заявку
+            try:
+                leave = LeaveRequest.objects.get(id=request_id, status='pending')
+            except LeaveRequest.DoesNotExist:
+                return JsonResponse({'success': False, 'error': 'Заявка не найдена или уже обработана'})
+
+            # Обновляем статус заявки
+            leave.status = 'approved' if action == 'approve' else 'rejected'
+            leave.reviewed_by = approver
+            leave.reviewed_at = timezone.now()
+            leave.save()
+
+            # Отправляем уведомления
+            # Email
+            send_result_to_employee.delay(
+                leave.user.email,
+                leave.get_leave_type_display(),
+                leave.start_date.strftime('%d.%m.%Y'),
+                leave.end_date.strftime('%d.%m.%Y'),
+                leave.status
+            )
+
+            # Telegram
+            if leave.user.telegram_id:
+                from app.tasks import notify_employee_telegram
+                notify_employee_telegram.delay(
+                    employee_telegram_id=leave.user.telegram_id,
+                    leave_type=leave.get_leave_type_display(),
+                    start_date=leave.start_date.strftime('%d.%m.%Y'),
+                    end_date=leave.end_date.strftime('%d.%m.%Y'),
+                    status=leave.status
+                )
+
+            return JsonResponse({
+                'success': True,
+                'message': f"Заявка {'одобрена' if action == 'approve' else 'отклонена'}"
+            })
+
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+
+    return JsonResponse({'success': False, 'error': 'Метод не поддерживается'})
+
 # Редактирование табеля — только редактор
 @login_required
 @user_passes_test(is_editor)
@@ -442,3 +530,16 @@ def edit_attendance(request):
 def user_management(request):
     return render(request, 'stub.html')
 
+@login_required
+def link_telegram(request):
+    user = request.user
+
+    code_obj, created = TelegramLinkCode.objects.get_or_create(user=user)
+
+    if created or not code_obj.code:
+        code_obj.code = get_random_string(length=6, allowed_chars='0123456789')
+        code_obj.save()
+
+    return render(request, 'link_telegram.html', {
+        'code': code_obj.code
+    })
