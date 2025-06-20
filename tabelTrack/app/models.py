@@ -4,10 +4,9 @@ from django.conf import settings
 from django.utils import timezone
 from datetime import date
 
-from datetime import date
-from django.contrib.auth.models import AbstractUser
-from django.db import models
 
+class Department(models.Model):
+    name = models.CharField(max_length=100, unique=True)
 
 class CustomUser(AbstractUser):
     ROLE_CHOICES = [
@@ -36,13 +35,32 @@ class CustomUser(AbstractUser):
         ('chief', 'Начальник участка'),
     ]
 
+    department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='worker')
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES, default='male')
     shift_type = models.CharField(max_length=10, choices=SHIFT_CHOICES, default='5_2')
     shift_start_date = models.DateField(null=True, blank=True, default=date(2024, 1, 1))
     position = models.CharField(max_length=100, choices=POSITION_CHOICES, blank=True, verbose_name='Должность')
+    # Личная информация
+    middle_name = models.CharField("Отчество", max_length=50, blank=True)
+    birth_date = models.DateField("Дата рождения", null=True, blank=True)
+    marital_status = models.CharField("Семейное положение", max_length=50, blank=True)
 
-    # Добавляем поле для Telegram ID
+    # Рабочая информация
+    employee_id = models.CharField("Табельный номер", max_length=20, blank=True, unique=True)
+    department = models.CharField("Подразделение", max_length=100, blank=True)
+    manager = models.CharField("Руководитель", max_length=100, blank=True)
+    hire_date = models.DateField("Дата приема на работу", null=True, blank=True)
+    contract_type = models.CharField("Тип трудового договора", max_length=50, blank=True)
+
+    # Контактная информация
+    work_email = models.EmailField("Рабочий email", blank=True)
+    personal_email = models.EmailField("Личный email", blank=True)
+    work_phone = models.CharField("Рабочий телефон", max_length=20, blank=True)
+    mobile_phone = models.CharField("Мобильный телефон", max_length=20, blank=True)
+    address = models.TextField("Адрес проживания", blank=True)
+
+    # Telegram интеграция
     telegram_id = models.BigIntegerField(
         unique=True,
         null=True,
@@ -60,9 +78,16 @@ class CustomUser(AbstractUser):
         return f"{self.first_name} {self.last_name}".strip() or self.username
 
     def get_remaining_vacation_days(self):
-        """Заглушка для подсчета оставшихся дней отпуска"""
-        # Здесь можете добавить логику подсчета
-        return 28  # Временное значение
+        """Подсчет оставшихся дней отпуска (простая заглушка)"""
+        if not self.hire_date:
+            return 0
+        # Логика может быть расширена, например, с учетом использованных отпусков
+        total_days = 28  # Базовый отпуск
+        return total_days  # Временная реализация
+
+    class Meta:
+        verbose_name = "Пользователь"
+        verbose_name_plural = "Пользователи"
 
 
 class LeaveRequest(models.Model):
@@ -104,10 +129,28 @@ class LeaveRequest(models.Model):
         readable_type = dict(self.TYPE_CHOICES).get(self.leave_type, self.leave_type)
         return f"{self.user.get_full_name()} — {readable_type} с {self.start_date} по {self.end_date}"
 
+    @property
+    def days_duration(self):
+        """Возвращает длительность отпуска в днях"""
+        if self.start_date and self.end_date:
+            return (self.end_date - self.start_date).days + 1
+        return 0
 
-# models.py
+    class Meta:
+        verbose_name = "Заявка на отпуск"
+        verbose_name_plural = "Заявки на отпуск"
+        ordering = ['-created_at']
+
+
 class TelegramLinkCode(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
     code = models.CharField(max_length=6)
     created_at = models.DateTimeField(auto_now_add=True)
-    is_used = models.BooleanField(default=False)  # ← добавь это
+    is_used = models.BooleanField(default=False)  # Флаг использования кода
+
+    def __str__(self):
+        return f"Код {self.code} для {self.user.get_full_name()}"
+
+    class Meta:
+        verbose_name = "Код привязки Telegram"
+        verbose_name_plural = "Коды привязки Telegram"

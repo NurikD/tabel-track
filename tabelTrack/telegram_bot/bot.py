@@ -2,7 +2,7 @@
 from aiogram import Bot, Dispatcher
 from config import TELEGRAM_BOT_TOKEN
 from utils.django_setup import *
-from handlers import start, link, approve
+from handlers import start, link, approve, vacation
 
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 dp = Dispatcher()
@@ -11,7 +11,7 @@ dp = Dispatcher()
 dp.include_router(start.router)
 dp.include_router(link.router)
 dp.include_router(approve.router)
-
+dp.include_router(vacation.router)
 
 if __name__ == "__main__":
     import asyncio
