@@ -31,5 +31,7 @@ urlpatterns = [
     path('accounts/', include('django.contrib.auth.urls')),
 
     path('link_tg/', views.link_telegram, name='link_telegram'),
+
+    path('profile/', views.profile_view, name='profile'),
 ]
 

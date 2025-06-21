@@ -19,6 +19,8 @@ from app.tasks import send_result_to_employee
 
 from .models import TelegramLinkCode
 from django.utils.crypto import get_random_string
+from .forms import UserProfileForm
+
 
 # Ролевые проверки
 def is_worker(user): return user.role == 'worker'
@@ -543,3 +545,29 @@ def link_telegram(request):
     return render(request, 'link_telegram.html', {
         'code': code_obj.code
     })
+
+@login_required
+def profile_view(request):
+    user = request.user
+    if request.method == 'POST':
+        form = UserProfileForm(request.POST, instance=user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Профиль успешно обновлен.')
+            return redirect('profile')
+    else:
+        form = UserProfileForm(instance=user)
+
+    sick_leave_count = user.leaverequest_set.filter(leave_type='sick', status='approved').count()
+    context = {
+        'user': user,
+        'sick_leave_count': sick_leave_count,
+        'form': form,
+    }
+    return render(request, 'profile.html', context)
+
+from app.tasks import send_telegram_message
+def some_view(request):
+    user = CustomUser.objects.get(username="nurik")
+    if user.telegram_id:
+        send_telegram_message.delay(user.telegram_id, "Чурка")
