@@ -145,3 +145,22 @@ def status_display(status):
         'rejected': 'отклонена ❌',
         'pending': 'на рассмотрении ⏳'
     }.get(status, 'обработана')
+
+@shared_task
+def send_telegram_message(chat_id, text):
+    """Асинхронная отправка Telegram-сообщения"""
+    try:
+        token = settings.TELEGRAM_BOT_TOKEN
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        data = {
+            'chat_id': chat_id,
+            'text': text,
+            'parse_mode': 'HTML'
+        }
+        response = requests.post(url, data=data)
+        if response.status_code != 200:
+            print(f"❌ Telegram error: {response.text}")
+    except Exception as e:
+        print(f"⚠️ Ошибка отправки в Telegram: {e}")
+
+

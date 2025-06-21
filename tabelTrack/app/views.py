@@ -565,3 +565,9 @@ def profile_view(request):
         'form': form,
     }
     return render(request, 'profile.html', context)
+
+from app.tasks import send_telegram_message
+def some_view(request):
+    user = CustomUser.objects.get(username="nurik")
+    if user.telegram_id:
+        send_telegram_message.delay(user.telegram_id, "Чурка")

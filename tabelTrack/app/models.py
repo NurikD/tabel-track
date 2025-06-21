@@ -35,7 +35,7 @@ class CustomUser(AbstractUser):
         ('chief', 'Начальник участка'),
     ]
 
-    department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
+
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='worker')
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES, default='male')
     shift_type = models.CharField(max_length=10, choices=SHIFT_CHOICES, default='5_2')
@@ -82,7 +82,7 @@ class CustomUser(AbstractUser):
         if not self.hire_date:
             return 0
         # Логика может быть расширена, например, с учетом использованных отпусков
-        total_days = 28  # Базовый отпуск
+        total_days = 44  # Базовый отпуск
         return total_days  # Временная реализация
 
     class Meta:
